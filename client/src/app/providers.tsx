@@ -6,6 +6,12 @@ import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/toaster";
 import { TransactionTracker } from "@/components/TransactionTracker";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { useContractEventsListener } from "@/hooks/useContractEventsListener";
+
+function EventListener() {
+  useContractEventsListener();
+  return null;
+}
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,6 +28,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <EventListener />
       <Navbar />
       <main className="flex flex-1 flex-col">{children}</main>
       <div className="fixed bottom-4 left-4 z-50">
