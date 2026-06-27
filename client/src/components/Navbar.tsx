@@ -123,8 +123,8 @@ export function Navbar() {
           setWalletOpen(open);
           if (!open) clearError();
         }}
-        onConnect={async (name) => {
-          await connect(name);
+        onConnect={async () => {
+          await connect();
           if (!error) setWalletOpen(false);
         }}
         onDisconnect={disconnect}

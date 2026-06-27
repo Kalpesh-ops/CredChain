@@ -1,24 +1,20 @@
 "use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, Wallet, LogOut, Copy, ExternalLink, Check } from "lucide-react";
+import { X, Wallet, LogOut, Copy, ExternalLink, Check, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { cn, truncateAddress, getExplorerUrl } from "@/lib/utils";
+import { truncateAddress, getExplorerUrl } from "@/lib/utils";
 
 interface WalletModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConnect: (walletName: string) => Promise<void>;
+  onConnect: () => Promise<void>;
   onDisconnect: () => void;
   isConnected: boolean;
   address: string | null;
   error: string | null;
 }
-
-const walletOptions = [
-  { id: "freighter", name: "Freighter", description: "Browser extension wallet" },
-];
 
 export function WalletModal({
   open,
@@ -32,10 +28,10 @@ export function WalletModal({
   const [connecting, setConnecting] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const handleConnect = async (name: string) => {
+  const handleConnect = async () => {
     setConnecting(true);
     try {
-      await onConnect(name);
+      await onConnect();
     } finally {
       setConnecting(false);
     }
@@ -56,7 +52,7 @@ export function WalletModal({
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white p-6 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
           <div className="flex items-center justify-between mb-4">
             <Dialog.Title className="text-lg font-semibold">
-              {isConnected ? "Wallet" : "Connect Wallet"}
+              {isConnected ? "Wallet Profile" : "Connect Wallet"}
             </Dialog.Title>
             <Dialog.Close asChild>
               <Button variant="ghost" size="icon">
@@ -112,23 +108,27 @@ export function WalletModal({
               </Button>
             </div>
           ) : (
-            <div className="space-y-2">
-              {walletOptions.map((wallet) => (
-                <button
-                  key={wallet.id}
-                  onClick={() => handleConnect(wallet.id)}
-                  disabled={connecting}
-                  className={cn(
-                    "w-full rounded-lg border border-zinc-200 p-4 text-left transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800",
-                    connecting && "opacity-50 cursor-not-allowed"
-                  )}
-                >
-                  <div className="font-medium">{wallet.name}</div>
-                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {wallet.description}
-                  </div>
-                </button>
-              ))}
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                Connect your Stellar wallet to interact with CredChain. The kit supports Freighter, xBull, Albedo, and other compatible Stellar wallets.
+              </p>
+              <Button
+                onClick={handleConnect}
+                disabled={connecting}
+                className="w-full h-12 text-base font-semibold gap-2"
+              >
+                {connecting ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    Connecting...
+                  </>
+                ) : (
+                  <>
+                    <Wallet className="h-5 w-5" />
+                    Select Wallet
+                  </>
+                )}
+              </Button>
             </div>
           )}
         </Dialog.Content>

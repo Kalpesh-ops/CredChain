@@ -2,24 +2,21 @@
 
 import { create } from "zustand";
 import {
-  isConnected,
-  getAddress,
-  signTransaction,
-} from "@stellar/freighter-api";
-import {
   TransactionBuilder,
   Contract,
   rpc,
   scValToNative,
   xdr,
   Keypair,
+  Operation,
+  Asset
 } from "@stellar/stellar-sdk";
 import type { WalletState } from "@/types";
 import { getNetworkConfig } from "@/lib/contracts";
 
 interface WalletStore extends WalletState {
-  connect: (walletName: string) => Promise<void>;
-  disconnect: () => void;
+  connect: () => Promise<void>;
+  disconnect: () => Promise<void>;
   fetchBalance: () => Promise<void>;
   signAndSendTransaction: (
     method: string,
@@ -30,6 +27,7 @@ interface WalletStore extends WalletState {
     method: string,
     params: xdr.ScVal[]
   ) => Promise<unknown>;
+  sendXlm: (recipient: string, amount: string) => Promise<string>;
   clearError: () => void;
 }
 
@@ -46,36 +44,59 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   balance: "0",
   error: null,
 
-  connect: async (walletName: string) => {
+  connect: async () => {
     try {
       set({ error: null });
 
-      const connected = await isConnected();
-      if (!connected) {
-        set({ error: "Freighter wallet not found. Please install the Freighter browser extension." });
-        return;
-      }
+      // Lazy import kit on the client side to avoid SSR errors
+      const { StellarWalletsKit, Networks } = await import("@creit.tech/stellar-wallets-kit");
+      const { FreighterModule } = await import("@creit.tech/stellar-wallets-kit/modules/freighter");
+      const { xBullModule } = await import("@creit.tech/stellar-wallets-kit/modules/xbull");
+      const { AlbedoModule } = await import("@creit.tech/stellar-wallets-kit/modules/albedo");
 
-      const { address } = await getAddress();
-      if (!address) {
-        set({ error: "Could not get wallet address. Please unlock Freighter and try again." });
-        return;
-      }
+      StellarWalletsKit.init({
+        network: NETWORK === "mainnet" ? Networks.PUBLIC : Networks.TESTNET,
+        modules: [
+          new FreighterModule(),
+          new xBullModule(),
+          new AlbedoModule(),
+        ],
+      });
+
+      const result = await StellarWalletsKit.authModal();
+      
+      let walletId: any = "freighter";
+      try {
+        walletId = (StellarWalletsKit as any).selectedModule?.productId || "freighter";
+      } catch {}
 
       set({
         isConnected: true,
-        address,
-        walletName: walletName as WalletStore["walletName"],
+        address: result.address,
+        walletName: walletId,
       });
 
       await get().fetchBalance();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to connect wallet";
+      const errObj = err as any;
+      let message = errObj.message || "Failed to connect wallet";
+      if (message.includes("closed") || message.includes("user closed") || errObj.code === -1) {
+        message = "Connection closed by user";
+      } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
+        message = "User rejected request";
+      } else if (message.includes("not installed") || message.includes("not found") || message.includes("install")) {
+        message = "Wallet not installed. Please install the browser extension.";
+      }
       set({ error: message });
     }
   },
 
-  disconnect: () => {
+  disconnect: async () => {
+    try {
+      const { StellarWalletsKit } = await import("@creit.tech/stellar-wallets-kit");
+      await StellarWalletsKit.disconnect();
+    } catch {}
+
     set({
       isConnected: false,
       address: null,
@@ -87,16 +108,25 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
   fetchBalance: async () => {
     try {
-      const { address, rpcUrl } = get();
+      const { address } = get();
       if (!address) return;
 
-      const server = new rpc.Server(rpcUrl);
-      const acct = await server.getAccount(address);
-      if (acct) {
-        set({ balance: "100" }); // placeholder - real balance would come from Horizon
+      const horizonUrl = NETWORK === "mainnet" 
+        ? "https://horizon.stellar.org" 
+        : "https://horizon-testnet.stellar.org";
+
+      const res = await fetch(`${horizonUrl}/accounts/${address}`);
+      if (res.ok) {
+        const data = await res.json();
+        const nativeBalance = data.balances.find((b: any) => b.asset_type === "native")?.balance;
+        if (nativeBalance) {
+          set({ balance: nativeBalance });
+          return;
+        }
       }
+      set({ balance: "0" });
     } catch {
-      // silently fail balance fetch
+      set({ balance: "0" });
     }
   },
 
@@ -105,62 +135,131 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     params: xdr.ScVal[],
     fee = "100"
   ) => {
-    const { address, networkPassphrase, rpcUrl } = get();
-    if (!address) throw new Error("Wallet not connected");
+    try {
+      const { address, networkPassphrase, rpcUrl } = get();
+      if (!address) throw new Error("Wallet not connected");
 
-    const server = new rpc.Server(rpcUrl);
-    const account = await server.getAccount(address);
+      const server = new rpc.Server(rpcUrl);
+      const account = await server.getAccount(address);
 
-    const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
-    if (!contractAddress) throw new Error("Contract address not configured");
+      const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS;
+      if (!contractAddress) throw new Error("Contract address not configured");
 
-    const contract = new Contract(contractAddress);
+      const contract = new Contract(contractAddress);
 
-    const tx = new TransactionBuilder(account, {
-      fee,
-      networkPassphrase,
-    })
-      .addOperation(contract.call(method, ...params))
-      .setTimeout(30)
-      .build();
+      const tx = new TransactionBuilder(account, {
+        fee,
+        networkPassphrase,
+      })
+        .addOperation(contract.call(method, ...params))
+        .setTimeout(30)
+        .build();
 
-    const sim = await server.simulateTransaction(tx);
-    if (rpc.Api.isSimulationError(sim)) {
-      throw new Error(`Simulation failed: ${sim.error}`);
-    }
-
-    const preparedTx = rpc.assembleTransaction(tx, sim).build();
-
-    const signedResult = await signTransaction(preparedTx.toXDR(), {
-      networkPassphrase,
-      address,
-    });
-
-    if (signedResult.error) {
-      throw new Error(`User rejected transaction: ${signedResult.error.message || signedResult.error}`);
-    }
-
-    const signedTx = TransactionBuilder.fromXDR(signedResult.signedTxXdr, networkPassphrase);
-    const sendResponse = await server.sendTransaction(signedTx);
-
-    if (sendResponse.status === "PENDING" || sendResponse.status === "DUPLICATE") {
-      const { hash } = sendResponse;
-      let pollCount = 0;
-      while (pollCount < 30) {
-        const getResponse = await server.getTransaction(hash);
-        if (getResponse.status === rpc.Api.GetTransactionStatus.SUCCESS) {
-          return hash;
-        }
-        if (getResponse.status === rpc.Api.GetTransactionStatus.FAILED) {
-          throw new Error(`Transaction failed: ${hash}`);
-        }
-        await new Promise((r) => setTimeout(r, 1000));
-        pollCount++;
+      const sim = await server.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(sim)) {
+        throw new Error(`Simulation failed: ${sim.error}`);
       }
-      throw new Error("Transaction timeout");
-    }
 
-    throw new Error(`Failed to send transaction: ${sendResponse.status}`);
+      const preparedTx = rpc.assembleTransaction(tx, sim).build();
+
+      const { StellarWalletsKit } = await import("@creit.tech/stellar-wallets-kit");
+      const signResult = await StellarWalletsKit.signTransaction(preparedTx.toXDR(), {
+        address,
+      });
+
+      const signedXdr = signResult.signedTxXdr || (signResult as any).signedXDR || signResult;
+      const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+      const sendResponse = await server.sendTransaction(signedTx);
+
+      if (sendResponse.status === "PENDING" || sendResponse.status === "DUPLICATE") {
+        const { hash } = sendResponse;
+        let pollCount = 0;
+        while (pollCount < 30) {
+          const getResponse = await server.getTransaction(hash);
+          if (getResponse.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+            await get().fetchBalance();
+            return hash;
+          }
+          if (getResponse.status === rpc.Api.GetTransactionStatus.FAILED) {
+            throw new Error(`Transaction failed: ${hash}`);
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+          pollCount++;
+        }
+        throw new Error("Transaction timeout");
+      }
+
+      throw new Error(`Failed to send transaction: ${sendResponse.status}`);
+    } catch (err: any) {
+      let message = err.message || "Transaction failed";
+      if (message.includes("op_underfunded") || message.includes("underfunded") || message.includes("insufficient_balance")) {
+        message = "Insufficient balance. Please fund your account using Friendbot.";
+      } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
+        message = "User rejected request";
+      }
+      throw new Error(message);
+    }
+  },
+
+  sendXlm: async (recipient: string, amount: string) => {
+    try {
+      const { address, networkPassphrase, rpcUrl } = get();
+      if (!address) throw new Error("Wallet not connected");
+
+      const server = new rpc.Server(rpcUrl);
+      const account = await server.getAccount(address);
+
+      const tx = new TransactionBuilder(account, {
+        fee: "10000", // 0.01 XLM max fee
+        networkPassphrase,
+      })
+        .addOperation(
+          Operation.payment({
+            destination: recipient,
+            asset: Asset.native(),
+            amount: amount,
+          })
+        )
+        .setTimeout(30)
+        .build();
+
+      const { StellarWalletsKit } = await import("@creit.tech/stellar-wallets-kit");
+      const signResult = await StellarWalletsKit.signTransaction(tx.toXDR(), {
+        address,
+      });
+
+      const signedXdr = signResult.signedTxXdr || (signResult as any).signedXDR || signResult;
+      const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
+      const sendResponse = await server.sendTransaction(signedTx);
+
+      if (sendResponse.status === "PENDING" || sendResponse.status === "DUPLICATE") {
+        const { hash } = sendResponse;
+        let pollCount = 0;
+        while (pollCount < 30) {
+          const getResponse = await server.getTransaction(hash);
+          if (getResponse.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+            await get().fetchBalance();
+            return hash;
+          }
+          if (getResponse.status === rpc.Api.GetTransactionStatus.FAILED) {
+            throw new Error(`Transaction failed: ${hash}`);
+          }
+          await new Promise((r) => setTimeout(r, 1000));
+          pollCount++;
+        }
+        throw new Error("Transaction timeout");
+      }
+
+      throw new Error(`Failed to send transaction: ${sendResponse.status}`);
+    } catch (err: any) {
+      let message = err.message || "Transaction failed";
+      if (message.includes("op_underfunded") || message.includes("underfunded") || message.includes("insufficient_balance")) {
+        message = "Insufficient balance. Please fund your account using Friendbot.";
+      } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
+        message = "User rejected request";
+      }
+      throw new Error(message);
+    }
   },
 
   readContract: async (method: string, params: xdr.ScVal[]) => {
@@ -171,19 +270,16 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
     const server = new rpc.Server(rpcUrl);
     const contract = new Contract(contractAddress);
 
-    // For read-only calls, we use a dummy account
     const source = address
       ? await server.getAccount(address)
       : Keypair.random().publicKey();
 
-    // For simulations, we need the account
     let account;
     try {
       account = typeof source === "string"
         ? await server.getAccount(source)
         : source;
     } catch {
-      // If account doesn't exist, use a random one
       const randomKey = Keypair.random();
       account = {
         accountId: () => randomKey.publicKey(),
