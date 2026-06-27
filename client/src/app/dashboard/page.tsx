@@ -156,9 +156,9 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
+            <div className="text-2xl font-bold">
               {allInstitutions?.length ?? <Skeleton className="h-8 w-12 inline-block" />}
-            </p>
+            </div>
             <p className="text-xs text-zinc-500">registered on CredChain</p>
           </CardContent>
         </Card>

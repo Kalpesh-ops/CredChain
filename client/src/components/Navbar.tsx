@@ -124,8 +124,12 @@ export function Navbar() {
           if (!open) clearError();
         }}
         onConnect={async () => {
+          setWalletOpen(false);
           await connect();
-          if (!error) setWalletOpen(false);
+          const currentError = useWalletStore.getState().error;
+          if (currentError && currentError !== "Connection closed by user") {
+            setWalletOpen(true);
+          }
         }}
         onDisconnect={disconnect}
         isConnected={isConnected}

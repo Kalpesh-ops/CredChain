@@ -121,14 +121,45 @@ export function useContractEventsListener() {
                 });
               }
             } catch (err) {
-              console.error("Error parsing event:", err);
+              console.error("Error parsing event:", err instanceof Error ? err.message : err);
             }
           }
         }
 
         lastLedgerRef.current = currentSequence;
-      } catch (err) {
-        console.error("Error fetching Soroban events:", err);
+      } catch (err: unknown) {
+        const errorObj = err as any;
+        const errMsg = errorObj?.message || (typeof errorObj === "object" ? JSON.stringify(errorObj) : errorObj);
+        
+        // Parse the ledger range from the error message if present
+        const match = typeof errMsg === "string" ? errMsg.match(/range:\s*(\d+)\s*-\s*(\d+)/) : null;
+        if (match) {
+          const min = parseInt(match[1], 10);
+          const max = parseInt(match[2], 10);
+          const start = lastLedgerRef.current ? lastLedgerRef.current + 1 : 0;
+          
+          if (start > max) {
+            // Sync lag: requested ledger is ahead of the event indexer's max range.
+            // Do NOT log this as an error or reset the ref; just wait for the indexer to catch up.
+            console.log(`Soroban event indexer lagging. Requested: ${start}, Indexed Max: ${max}. Retrying on next poll...`);
+            return;
+          }
+          if (start < min) {
+            // Pruned: requested ledger is older than the oldest retained ledger.
+            // Reset lastLedgerRef to null to re-initialize from the latest ledger.
+            console.warn(`Soroban events pruned. Requested: ${start}, Retention Min: ${min}. Re-initializing...`);
+            lastLedgerRef.current = null;
+            return;
+          }
+        }
+
+        console.error("Error fetching Soroban events:", errMsg);
+        if (
+          errorObj?.code === -32600 ||
+          (errorObj?.message && errorObj.message.includes("startLedger"))
+        ) {
+          lastLedgerRef.current = null;
+        }
       }
     };
 
