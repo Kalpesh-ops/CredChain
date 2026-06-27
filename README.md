@@ -138,12 +138,27 @@ stellar contract deploy \
 
 ---
 
-## Screenshots Placeholders
+## Working States & Screenshots
 
-*   **Wallet Connected**: `[Screenshot Placeholder: client/public/screenshots/wallet_connected.png]`
-*   **Balance Displayed**: `[Screenshot Placeholder: client/public/screenshots/balance_display.png]`
-*   **Successful Transaction**: `[Screenshot Placeholder: client/public/screenshots/successful_transaction.png]`
-*   **Transaction Feedback (Pending/Success/Failed)**: `[Screenshot Placeholder: client/public/screenshots/transaction_feedback.png]`
+### 1. Wallet Connected State
+The application supports connecting to multiple Stellar wallets (Freighter, xBull, Albedo). Once connected, the user's wallet address and status are displayed in the dashboard.
+
+![Wallet Connected](./static/connected-wallet.png)
+
+### 2. Balance Displayed
+The wallet balance (retrieved directly from the Stellar Horizon network) is displayed dynamically in the Wallet Status card.
+
+![Balance Displayed](./static/balance-display.png)
+
+### 3. Successful Testnet Transaction
+Users can send XLM transfers directly on the Stellar Testnet. When a transaction is submitted, the transaction is signed using the connected wallet and broadcasted to the network.
+
+![Successful Testnet Transaction](./static/transaction-success.png)
+
+### 4. Transaction Result Displayed
+The real-time status of the transaction (pending, success, or failure) is shown to the user with detailed feedback and a direct link to view it on the Stellar Explorer.
+
+![Transaction Result](./static/transaction-result.png)
 
 ---
 
