@@ -40,11 +40,10 @@ CredChain is a decentralized certificate issuance platform built on the Stellar 
 credchain/
 ├── contract/                     # Soroban smart contract
 │   ├── Cargo.toml
-│   └── contracts/contract/
-│       ├── Cargo.toml
-│       └── src/
-│           ├── lib.rs            # Contract implementation
-│           └── test.rs           # Contract tests
+│   ├── src/
+│   │   ├── lib.rs            # Contract implementation
+│   │   └── test.rs           # Contract tests
+│   └── Makefile              # Build rules
 ├── client/                       # Next.js frontend
 │   ├── src/
 │   │   ├── app/                  # Pages
