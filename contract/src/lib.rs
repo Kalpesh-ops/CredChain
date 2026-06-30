@@ -88,7 +88,7 @@ impl CredChain {
 
     pub fn register_institution(env: Env, addr: Address, name: String) {
         addr.require_auth();
-        if name.len() == 0 {
+        if name.is_empty() {
             panic_with_error!(&env, ContractError::InvalidInput);
         }
         if env
@@ -150,7 +150,7 @@ impl CredChain {
         metadata_uri: String,
     ) -> u64 {
         issuer.require_auth();
-        if metadata_uri.len() == 0 {
+        if metadata_uri.is_empty() {
             panic_with_error!(&env, ContractError::InvalidInput);
         }
         let inst: Institution = env
