@@ -61,8 +61,8 @@ export default function DashboardPage() {
       });
       setRecipientXlm("");
       setAmountXlm("");
-    } catch (err: any) {
-      const errMsg = err.message || "Failed to send XLM";
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       setXlmTxError(errMsg);
       setXlmTxStatus("failed");
       updateTransaction(internalTxId, {

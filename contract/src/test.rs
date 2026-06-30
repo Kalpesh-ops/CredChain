@@ -321,3 +321,34 @@ fn test_configure_fees_and_registration_fee_transfer() {
     assert_eq!(token_client.balance(&institution), 0);
     assert_eq!(token_client.balance(&treasury), fee);
 }
+
+#[test]
+fn test_register_institution_empty_name() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(CredChain, ());
+    let client = CredChainClient::new(&env, &contract_id);
+
+    let addr = Address::generate(&env);
+    let result = client.try_register_institution(&addr, &String::from_str(&env, ""));
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_issue_certificate_empty_metadata() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(CredChain, ());
+    let client = CredChainClient::new(&env, &contract_id);
+
+    let issuer = Address::generate(&env);
+    let recipient = Address::generate(&env);
+    client.register_institution(&issuer, &String::from_str(&env, "MIT"));
+
+    let result = client.try_issue_certificate(
+        &issuer,
+        &recipient,
+        &String::from_str(&env, ""),
+    );
+    assert!(result.is_err());
+}

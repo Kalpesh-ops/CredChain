@@ -9,9 +9,10 @@ import {
   xdr,
   Keypair,
   Operation,
-  Asset
+  Asset,
+  Account
 } from "@stellar/stellar-sdk";
-import type { WalletState } from "@/types";
+import type { WalletState, WalletName } from "@/types";
 import { getNetworkConfig } from "@/lib/contracts";
 
 interface WalletStore extends WalletState {
@@ -65,9 +66,12 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const result = await StellarWalletsKit.authModal();
       
-      let walletId: any = "freighter";
+      let walletId: WalletName = "freighter";
       try {
-        walletId = (StellarWalletsKit as any).selectedModule?.productId || "freighter";
+        const id = (StellarWalletsKit as unknown as { selectedModule?: { productId?: string } }).selectedModule?.productId;
+        if (id === "freighter" || id === "albedo" || id === "xbull" || id === "rabet") {
+          walletId = id;
+        }
       } catch {}
 
       set({
@@ -78,9 +82,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       await get().fetchBalance();
     } catch (err: unknown) {
-      const errObj = err as any;
-      let message = errObj.message || "Failed to connect wallet";
-      if (message.includes("closed") || message.includes("user closed") || errObj.code === -1) {
+      const errObj = err as Record<string, unknown> | null | undefined;
+      const errMsg = typeof errObj?.message === "string" ? errObj.message : "Failed to connect wallet";
+      let message = errMsg;
+      if (message.includes("closed") || message.includes("user closed") || errObj?.code === -1) {
         message = "Connection closed by user";
       } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
         message = "User rejected request";
@@ -117,8 +122,8 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
 
       const res = await fetch(`${horizonUrl}/accounts/${address}`);
       if (res.ok) {
-        const data = await res.json();
-        const nativeBalance = data.balances.find((b: any) => b.asset_type === "native")?.balance;
+        const data = (await res.json()) as { balances: Array<{ asset_type: string; balance?: string }> };
+        const nativeBalance = data.balances.find((b) => b.asset_type === "native")?.balance;
         if (nativeBalance) {
           set({ balance: nativeBalance });
           return;
@@ -167,7 +172,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         address,
       });
 
-      const signedXdr = signResult.signedTxXdr || (signResult as any).signedXDR || signResult;
+      const signResultTyped = signResult as unknown as { signedTxXdr?: string; signedXDR?: string } | string;
+      const signedXdr = typeof signResultTyped === "string" 
+        ? signResultTyped 
+        : signResultTyped.signedTxXdr || signResultTyped.signedXDR || "";
       const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
       const sendResponse = await server.sendTransaction(signedTx);
 
@@ -190,8 +198,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       }
 
       throw new Error(`Failed to send transaction: ${sendResponse.status}`);
-    } catch (err: any) {
-      let message = err.message || "Transaction failed";
+    } catch (err: unknown) {
+      const errorObj = err as Record<string, unknown> | null | undefined;
+      const errMsg = typeof errorObj?.message === "string" ? errorObj.message : "Transaction failed";
+      let message = errMsg;
       if (message.includes("op_underfunded") || message.includes("underfunded") || message.includes("insufficient_balance")) {
         message = "Insufficient balance. Please fund your account using Friendbot.";
       } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
@@ -228,7 +238,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         address,
       });
 
-      const signedXdr = signResult.signedTxXdr || (signResult as any).signedXDR || signResult;
+      const signResultTyped = signResult as unknown as { signedTxXdr?: string; signedXDR?: string } | string;
+      const signedXdr = typeof signResultTyped === "string" 
+        ? signResultTyped 
+        : signResultTyped.signedTxXdr || signResultTyped.signedXDR || "";
       const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
       const sendResponse = await server.sendTransaction(signedTx);
 
@@ -251,8 +264,10 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       }
 
       throw new Error(`Failed to send transaction: ${sendResponse.status}`);
-    } catch (err: any) {
-      let message = err.message || "Transaction failed";
+    } catch (err: unknown) {
+      const errorObj = err as Record<string, unknown> | null | undefined;
+      const errMsg = typeof errorObj?.message === "string" ? errorObj.message : "Transaction failed";
+      let message = errMsg;
       if (message.includes("op_underfunded") || message.includes("underfunded") || message.includes("insufficient_balance")) {
         message = "Insufficient balance. Please fund your account using Friendbot.";
       } else if (message.includes("rejected") || message.includes("cancel") || message.includes("User rejected")) {
@@ -289,7 +304,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         signers: [],
         thresholds: { low_threshold: 0, med_threshold: 0, high_threshold: 0 },
         flags: { auth_required: false, auth_revocable: false, auth_immutable: false, auth_clawback_enabled: false },
-      } as any;
+      } as unknown as Account;
     }
 
     const tx = new TransactionBuilder(account, {

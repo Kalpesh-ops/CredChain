@@ -41,6 +41,7 @@ pub enum ContractError {
     NotAuthorized = 3,
     CertificateNotFound = 4,
     AlreadyRevoked = 5,
+    InvalidInput = 6,
 }
 
 #[contractevent(topics = ["inst_reg"])]
@@ -88,6 +89,9 @@ impl CredChain {
 
     pub fn register_institution(env: Env, addr: Address, name: String) {
         addr.require_auth();
+        if name.len() == 0 {
+            panic_with_error!(&env, ContractError::InvalidInput);
+        }
         if env.storage().persistent().has(&DataKey::Institution(addr.clone())) {
             panic_with_error!(&env, ContractError::AlreadyRegistered);
         }
@@ -126,6 +130,9 @@ impl CredChain {
         metadata_uri: String,
     ) -> u64 {
         issuer.require_auth();
+        if metadata_uri.len() == 0 {
+            panic_with_error!(&env, ContractError::InvalidInput);
+        }
         let inst: Institution = env.storage()
             .persistent()
             .get(&DataKey::Institution(issuer.clone()))

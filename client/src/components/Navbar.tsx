@@ -7,6 +7,7 @@ import { useState } from "react";
 import { cn, truncateAddress } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useWalletStore } from "@/stores/wallet";
+import { useActivityStore } from "@/stores/activity";
 import { WalletModal } from "@/components/WalletModal";
 
 const navLinks = [
@@ -22,6 +23,7 @@ export function Navbar() {
   const [walletOpen, setWalletOpen] = useState(false);
   const { isConnected, address, connect, disconnect, error, clearError } =
     useWalletStore();
+  const syncStatus = useActivityStore((s) => s.syncStatus);
 
   return (
     <>
@@ -56,6 +58,21 @@ export function Navbar() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Real-time Event Sync status indicator */}
+            <div className="flex items-center gap-1.5 mr-2">
+              <span className={cn(
+                "h-2 w-2 rounded-full",
+                syncStatus === "connected" && "bg-green-500 animate-pulse",
+                syncStatus === "syncing" && "bg-blue-500 animate-pulse",
+                syncStatus === "error" && "bg-red-500 animate-bounce"
+              )} />
+              <span className="hidden text-[10px] font-medium text-zinc-500 sm:inline">
+                {syncStatus === "connected" && "Event Sync"}
+                {syncStatus === "syncing" && "Syncing..."}
+                {syncStatus === "error" && "Sync Error"}
+              </span>
+            </div>
+
             {isConnected && address ? (
               <Button
                 variant="outline"

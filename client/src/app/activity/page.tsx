@@ -1,15 +1,13 @@
 "use client";
 
-import { RefreshCw, Activity } from "lucide-react";
+import { Activity, ExternalLink } from "lucide-react";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { useActivityStore } from "@/stores/activity";
 import { useTransactionStore } from "@/stores/transactions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { getExplorerUrl, formatTimestamp } from "@/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { getExplorerUrl } from "@/lib/utils";
 
 export default function ActivityPage() {
   const { events, clearEvents } = useActivityStore();

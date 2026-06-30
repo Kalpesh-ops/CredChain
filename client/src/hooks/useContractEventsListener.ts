@@ -9,8 +9,9 @@ import { useToast } from "@/hooks/use-toast";
 
 export function useContractEventsListener() {
   const rpcUrl = useWalletStore((s) => s.rpcUrl);
-  const isConnected = useWalletStore((s) => s.isConnected);
   const addEvent = useActivityStore((s) => s.addEvent);
+  const setSyncStatus = useActivityStore((s) => s.setSyncStatus);
+  const setLastSyncedAt = useActivityStore((s) => s.setLastSyncedAt);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -24,19 +25,22 @@ export function useContractEventsListener() {
 
     const server = new rpc.Server(rpcUrl);
 
-    const parseScVal = (val: any): xdr.ScVal => {
+    const parseScVal = (val: unknown): xdr.ScVal => {
       if (typeof val === "string") {
         return xdr.ScVal.fromXDR(val, "base64");
       }
-      return val;
+      return val as xdr.ScVal;
     };
 
     const fetchEvents = async () => {
       try {
+        setSyncStatus("syncing");
         if (!lastLedgerRef.current) {
           // Initialize with latest ledger sequence
           const latest = await server.getLatestLedger();
-          lastLedgerRef.current = latest.sequence - 10; // check last 10 ledgers initially to avoid missing quick actions
+          lastLedgerRef.current = Math.max(0, latest.sequence - 10); // check last 10 ledgers initially to avoid missing quick actions
+          setSyncStatus("connected");
+          setLastSyncedAt(Math.floor(Date.now() / 1000));
           return;
         }
 
@@ -44,6 +48,8 @@ export function useContractEventsListener() {
         const currentSequence = latest.sequence;
         
         if (currentSequence <= lastLedgerRef.current) {
+          setSyncStatus("connected");
+          setLastSyncedAt(Math.floor(Date.now() / 1000));
           return;
         }
 
@@ -127,9 +133,14 @@ export function useContractEventsListener() {
         }
 
         lastLedgerRef.current = currentSequence;
+        setSyncStatus("connected");
+        setLastSyncedAt(Math.floor(Date.now() / 1000));
       } catch (err: unknown) {
-        const errorObj = err as any;
-        const errMsg = errorObj?.message || (typeof errorObj === "object" ? JSON.stringify(errorObj) : errorObj);
+        setSyncStatus("error");
+        const errorObj = err as Record<string, unknown> | null | undefined;
+        const errMsg = typeof errorObj?.message === "string" 
+          ? errorObj.message 
+          : (typeof errorObj === "object" && errorObj !== null ? JSON.stringify(errorObj) : String(err));
         
         // Parse the ledger range from the error message if present
         const match = typeof errMsg === "string" ? errMsg.match(/range:\s*(\d+)\s*-\s*(\d+)/) : null;
@@ -142,6 +153,7 @@ export function useContractEventsListener() {
             // Sync lag: requested ledger is ahead of the event indexer's max range.
             // Do NOT log this as an error or reset the ref; just wait for the indexer to catch up.
             console.log(`Soroban event indexer lagging. Requested: ${start}, Indexed Max: ${max}. Retrying on next poll...`);
+            setSyncStatus("connected"); // still considered connected/waiting
             return;
           }
           if (start < min) {
@@ -156,7 +168,7 @@ export function useContractEventsListener() {
         console.error("Error fetching Soroban events:", errMsg);
         if (
           errorObj?.code === -32600 ||
-          (errorObj?.message && errorObj.message.includes("startLedger"))
+          (typeof errorObj?.message === "string" && errorObj.message.includes("startLedger"))
         ) {
           lastLedgerRef.current = null;
         }
@@ -177,5 +189,5 @@ export function useContractEventsListener() {
       activeRef.current = false;
       clearInterval(interval);
     };
-  }, [rpcUrl, addEvent, queryClient, toast]);
+  }, [rpcUrl, addEvent, queryClient, toast, setSyncStatus, setLastSyncedAt]);
 }

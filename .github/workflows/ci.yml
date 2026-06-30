@@ -18,6 +18,15 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: wasm32v1-none
+          components: rustfmt, clippy
+
+      - name: Check Rust Formatting
+        run: cargo fmt --check
+        working-directory: contract
+
+      - name: Run Clippy Lints
+        run: cargo clippy -- -D warnings
+        working-directory: contract
 
       - name: Run Cargo Test
         run: cargo test
@@ -43,6 +52,10 @@ jobs:
 
       - name: Install Dependencies
         run: npm install
+        working-directory: client
+
+      - name: Run Linter
+        run: npm run lint
         working-directory: client
 
       - name: Run Tests

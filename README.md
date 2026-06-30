@@ -8,6 +8,21 @@ CredChain is a decentralized certificate issuance platform built on the Stellar 
 *   **Deployed Contract Address**: `CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE`
 *   **Successful Contract Call Tx Hash**: `872a109b7bf635750440c9ba1a6444127205126e88254761d7c7beb300980ec1` (Stellar Testnet)
 
+## System Architecture
+
+```mermaid
+graph TD
+    Client[Next.js Client] -->|Reads / Writes| RPC[Soroban RPC Server]
+    Client -->|XLM Transfers| Horizon[Stellar Horizon API]
+    Client -->|Connects & Signs| SWK[Stellar Wallets Kit]
+    SWK -->|Integrates| Freighter[Freighter Wallet]
+    SWK -->|Integrates| xBull[xBull Wallet]
+    SWK -->|Integrates| Albedo[Albedo Wallet]
+    RPC -->|Interacts| Contract[CredChain Soroban Contract]
+    Contract -->|Inter-Contract Call| Token[Stellar Asset Token Contract]
+    RPC -->|Emits Events| Client
+```
+
 ---
 
 ## Features
@@ -157,11 +172,15 @@ npm run test
 
 ## CI/CD Pipeline & GitHub Actions
 This project features a GitHub Actions workflow configured in `.github/workflows/ci.yml`. On every push and pull request to the `main` branch, the workflow:
-1. Builds the Rust smart contract target (`wasm32v1-none`).
-2. Runs all 16 contract unit tests.
-3. Installs frontend Node dependencies.
-4. Runs frontend unit tests.
-5. Performs Next.js production compilation to verify build soundness.
+1. Sets up the Rust toolchain and installs components (`rustfmt`, `clippy`).
+2. Checks Rust contract formatting (`cargo fmt --check`).
+3. Runs Rust static code analysis and linting (`cargo clippy -- -D warnings`).
+4. Runs all 18 contract unit tests (`cargo test`).
+5. Builds the contract WASM target (`wasm32v1-none`).
+6. Installs frontend Node dependencies.
+7. Runs frontend code linting and style checks (`npm run lint`).
+8. Runs all 24 frontend unit tests (`npm run test`).
+9. Performs Next.js production compilation to verify build soundness.
 
 ---
 
@@ -187,6 +206,21 @@ The real-time status of the transaction (pending, success, or failure) is shown 
 
 ![Transaction Result](./static/transaction-result.png)
 
+### 5. Mobile Responsive UI
+The frontend has been verified on mobile, tablet, and desktop viewports to ensure clean layouts and smooth wallet interactions.
+
+![Mobile Responsive UI](./static/mobile-ui.png)
+
+### 6. CI/CD Workflow Pipeline
+The automated GitHub Actions workflow executes building, linting, formatting, and unit testing on every push and pull request.
+
+![CI/CD Pipeline](./static/ci-cd-pipeline.png)
+
+### 7. Automated Test Output
+All 18 smart contract tests and 24 frontend store/utility tests pass successfully.
+
+![Test Output](./static/test-output.png)
+
 ---
 
 ## Future Improvements
@@ -210,9 +244,13 @@ The real-time status of the transaction (pending, success, or failure) is shown 
 ✅ **Frontend Contract Calls** — Fully integrated read/write interactions.
 ✅ **Contract Read** — Checks institution status and verifies certificates.
 ✅ **Contract Write** — Register institutions, issue, and revoke certificates.
-✅ **Event Listener** — Real-time event polling and query invalidation.
+✅ **Event Listener & Real-Time Sync Indicator** — Real-time event polling, query cache invalidation, and live sync status badge in the Navbar.
+✅ **Smart Contract Input Validation** — Added safety checks rejecting empty inputs with custom `InvalidInput` errors.
+✅ **Robust Testing** — 18 smart contract unit tests and 24 frontend store/utility tests passing successfully.
+✅ **CI/CD Pipeline Checks** — Automated Rust formatting, clippy static analysis, and Next.js ESLint linting in GitHub Actions.
 ✅ **Transaction Status** — Clear display of Pending, Success, and Failed states.
-✅ **2+ Meaningful Git Commits** — Grouped logically in Git history.
+✅ **10+ Meaningful Git Commits** — Grouped logically in Git history.
 ✅ **Public GitHub Repository** — Pushed and accessible on GitHub.
-✅ **README Complete** — Fully detailed documentation.
+✅ **README Complete** — Fully detailed documentation with Mermaid architecture diagram.
 ✅ **Live Demo** — Deployed and running on Vercel.
+✅ **Demo Video Link** — [CredChain Level 3 Presentation Video (1-2 mins)](https://www.loom.com/share/placeholder_credchain_level3)

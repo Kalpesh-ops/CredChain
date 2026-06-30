@@ -4,8 +4,6 @@ import { ExternalLink, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useTransactionStore } from "@/stores/transactions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { getExplorerUrl } from "@/lib/utils";
 
 export function TransactionTracker() {
   const { transactions } = useTransactionStore();

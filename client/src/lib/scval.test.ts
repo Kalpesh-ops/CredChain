@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Keypair } from "@stellar/stellar-sdk";
 import {
   toScValString,
   toScValU32,
@@ -51,5 +52,12 @@ describe("ScVal helper converters", () => {
     const scVal = toScValI128(value);
     expect(scVal).toBeDefined();
     expect(fromScVal(scVal)).toBe(value);
+  });
+
+  it("converts addresses to ScVal and back", () => {
+    const addressStr = Keypair.random().publicKey();
+    const scVal = toScValAddress(addressStr);
+    expect(scVal).toBeDefined();
+    expect(fromScVal(scVal)).toBe(addressStr);
   });
 });
