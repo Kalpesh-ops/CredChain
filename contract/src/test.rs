@@ -58,7 +58,10 @@ fn test_issue_certificate() {
     assert_eq!(cert.id, 1);
     assert_eq!(cert.issuer, issuer);
     assert_eq!(cert.recipient, recipient);
-    assert_eq!(cert.metadata_uri, String::from_str(&env, "ipfs://QmCert123"));
+    assert_eq!(
+        cert.metadata_uri,
+        String::from_str(&env, "ipfs://QmCert123")
+    );
     assert!(!cert.revoked);
     assert_eq!(cert.issued_at, env.ledger().timestamp());
 
@@ -221,9 +224,18 @@ fn test_multiple_certificates() {
     let r2 = Address::generate(&env);
     let r3 = Address::generate(&env);
 
-    assert_eq!(client.issue_certificate(&issuer, &r1, &String::from_str(&env, "uri1")), 1);
-    assert_eq!(client.issue_certificate(&issuer, &r2, &String::from_str(&env, "uri2")), 2);
-    assert_eq!(client.issue_certificate(&issuer, &r3, &String::from_str(&env, "uri3")), 3);
+    assert_eq!(
+        client.issue_certificate(&issuer, &r1, &String::from_str(&env, "uri1")),
+        1
+    );
+    assert_eq!(
+        client.issue_certificate(&issuer, &r2, &String::from_str(&env, "uri2")),
+        2
+    );
+    assert_eq!(
+        client.issue_certificate(&issuer, &r3, &String::from_str(&env, "uri3")),
+        3
+    );
 
     let inst = client.get_institution(&issuer).unwrap();
     assert_eq!(inst.cert_count, 3);
@@ -288,35 +300,36 @@ fn test_revoke_not_found() {
 fn test_configure_fees_and_registration_fee_transfer() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let contract_id = env.register(CredChain, ());
     let client = CredChainClient::new(&env, &contract_id);
-    
+
     // Register the Stellar Asset Token contract
     let token_admin = Address::generate(&env);
     let token_contract_id = env.register_stellar_asset_contract_v2(token_admin.clone());
     let token_client = soroban_sdk::token::Client::new(&env, &token_contract_id.address());
-    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_contract_id.address());
-    
+    let token_admin_client =
+        soroban_sdk::token::StellarAssetClient::new(&env, &token_contract_id.address());
+
     let admin = Address::generate(&env);
     let treasury = Address::generate(&env);
     let institution = Address::generate(&env);
     let fee: i128 = 10_000_000; // 1 XLM / 10M stroops
-    
+
     // Configure fees
     client.configure_fees(&admin, &token_contract_id.address(), &treasury, &fee);
-    
+
     // Mint tokens to the institution
     token_admin_client.mint(&institution, &fee);
     assert_eq!(token_client.balance(&institution), fee);
     assert_eq!(token_client.balance(&treasury), 0);
-    
+
     // Register the institution (which should trigger the inter-contract fee transfer)
     client.register_institution(&institution, &String::from_str(&env, "Stanford Uni"));
-    
+
     // Verify institution is registered
     assert!(client.is_institution(&institution));
-    
+
     // Verify fee was transferred to treasury
     assert_eq!(token_client.balance(&institution), 0);
     assert_eq!(token_client.balance(&treasury), fee);
@@ -345,10 +358,6 @@ fn test_issue_certificate_empty_metadata() {
     let recipient = Address::generate(&env);
     client.register_institution(&issuer, &String::from_str(&env, "MIT"));
 
-    let result = client.try_issue_certificate(
-        &issuer,
-        &recipient,
-        &String::from_str(&env, ""),
-    );
+    let result = client.try_issue_certificate(&issuer, &recipient, &String::from_str(&env, ""));
     assert!(result.is_err());
 }
