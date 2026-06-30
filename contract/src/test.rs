@@ -283,3 +283,41 @@ fn test_revoke_not_found() {
     let result = client.try_revoke_certificate(&caller, &999);
     assert!(result.is_err());
 }
+
+#[test]
+fn test_configure_fees_and_registration_fee_transfer() {
+    let env = Env::default();
+    env.mock_all_auths();
+    
+    let contract_id = env.register(CredChain, ());
+    let client = CredChainClient::new(&env, &contract_id);
+    
+    // Register the Stellar Asset Token contract
+    let token_admin = Address::generate(&env);
+    let token_contract_id = env.register_stellar_asset_contract_v2(token_admin.clone());
+    let token_client = soroban_sdk::token::Client::new(&env, &token_contract_id.address());
+    let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_contract_id.address());
+    
+    let admin = Address::generate(&env);
+    let treasury = Address::generate(&env);
+    let institution = Address::generate(&env);
+    let fee: i128 = 10_000_000; // 1 XLM / 10M stroops
+    
+    // Configure fees
+    client.configure_fees(&admin, &token_contract_id.address(), &treasury, &fee);
+    
+    // Mint tokens to the institution
+    token_admin_client.mint(&institution, &fee);
+    assert_eq!(token_client.balance(&institution), fee);
+    assert_eq!(token_client.balance(&treasury), 0);
+    
+    // Register the institution (which should trigger the inter-contract fee transfer)
+    client.register_institution(&institution, &String::from_str(&env, "Stanford Uni"));
+    
+    // Verify institution is registered
+    assert!(client.is_institution(&institution));
+    
+    // Verify fee was transferred to treasury
+    assert_eq!(token_client.balance(&institution), 0);
+    assert_eq!(token_client.balance(&treasury), fee);
+}

@@ -7,6 +7,10 @@ pub enum DataKey {
     Certificate(u64),
     NextCertId,
     InstitutionList,
+    Admin,
+    TokenAddress,
+    TreasuryAddress,
+    RegFee,
 }
 
 #[contracttype]
@@ -62,11 +66,45 @@ pub struct CredChain;
 
 #[contractimpl]
 impl CredChain {
+    pub fn configure_fees(
+        env: Env,
+        admin: Address,
+        token: Address,
+        treasury: Address,
+        fee: i128,
+    ) {
+        admin.require_auth();
+        if let Some(existing_admin) = env.storage().instance().get::<_, Address>(&DataKey::Admin) {
+            if existing_admin != admin {
+                panic_with_error!(&env, ContractError::NotAuthorized);
+            }
+        } else {
+            env.storage().instance().set(&DataKey::Admin, &admin);
+        }
+        env.storage().instance().set(&DataKey::TokenAddress, &token);
+        env.storage().instance().set(&DataKey::TreasuryAddress, &treasury);
+        env.storage().instance().set(&DataKey::RegFee, &fee);
+    }
+
     pub fn register_institution(env: Env, addr: Address, name: String) {
         addr.require_auth();
         if env.storage().persistent().has(&DataKey::Institution(addr.clone())) {
             panic_with_error!(&env, ContractError::AlreadyRegistered);
         }
+
+        // Check if registration fee is configured
+        if let Some(token_addr) = env.storage().instance().get::<_, Address>(&DataKey::TokenAddress) {
+            if let Some(treasury_addr) = env.storage().instance().get::<_, Address>(&DataKey::TreasuryAddress) {
+                if let Some(fee) = env.storage().instance().get::<_, i128>(&DataKey::RegFee) {
+                    if fee > 0 {
+                        // Inter-contract call to the token contract
+                        let token_client = soroban_sdk::token::Client::new(&env, &token_addr);
+                        token_client.transfer(&addr, &treasury_addr, &fee);
+                    }
+                }
+            }
+        }
+
         env.storage().persistent().set(
             &DataKey::Institution(addr.clone()),
             &Institution { name, verified: true, cert_count: 0 },
