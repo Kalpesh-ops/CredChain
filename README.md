@@ -137,6 +137,34 @@ stellar contract deploy \
 
 ---
 
+## Testing
+
+### Smart Contract Tests
+Run unit tests for the smart contract (including mock token fee inter-contract calls):
+```bash
+cd contract
+cargo test
+```
+
+### Frontend Tests
+Run unit tests for the client-side XDR helper utilities:
+```bash
+cd client
+npm run test
+```
+
+---
+
+## CI/CD Pipeline & GitHub Actions
+This project features a GitHub Actions workflow configured in `.github/workflows/ci.yml`. On every push and pull request to the `main` branch, the workflow:
+1. Builds the Rust smart contract target (`wasm32v1-none`).
+2. Runs all 16 contract unit tests.
+3. Installs frontend Node dependencies.
+4. Runs frontend unit tests.
+5. Performs Next.js production compilation to verify build soundness.
+
+---
+
 ## Working States & Screenshots
 
 ### 1. Wallet Connected State

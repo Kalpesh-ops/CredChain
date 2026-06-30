@@ -142,9 +142,10 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 cd contract
 cargo test
 
-# Frontend lint
+# Frontend tests & lint
 cd client
-bun run lint
+npm run test
+npm run lint
 ```
 
 ## Vercel Deployment
