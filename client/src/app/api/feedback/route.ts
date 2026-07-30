@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getFeedbacksFromDb, saveFeedbackToDb, isDbConnected } from "@/lib/db";
 
 export interface FeedbackItem {
   id: string;
@@ -30,15 +31,32 @@ function ensureDataFile() {
       memoryFeedbacks = [];
     }
   } catch {
-    // If serverless filesystem is read-only, keep in memory cache
+    // Serverless fallback
   }
 }
 
 ensureDataFile();
 
 export async function GET() {
+  const dbConnected = await isDbConnected();
+  if (dbConnected) {
+    const dbRows = await getFeedbacksFromDb();
+    if (dbRows) {
+      const dbItems: FeedbackItem[] = dbRows.map((r) => ({
+        id: r.id,
+        address: r.address,
+        rating: r.rating,
+        category: r.category,
+        comment: r.comment,
+        timestamp: r.timestamp,
+        walletType: r.wallet_type,
+      }));
+      return NextResponse.json({ feedbacks: dbItems, source: "database" });
+    }
+  }
+
   ensureDataFile();
-  return NextResponse.json({ feedbacks: memoryFeedbacks });
+  return NextResponse.json({ feedbacks: memoryFeedbacks, source: "file" });
 }
 
 export async function POST(request: Request) {
@@ -60,8 +78,11 @@ export async function POST(request: Request) {
       walletType: walletType || "Direct Input",
     };
 
-    memoryFeedbacks = [newItem, ...memoryFeedbacks];
+    // Save to Database (Cloud DB Persistence)
+    const savedToDb = await saveFeedbackToDb(newItem);
 
+    // Save to local File (Secondary Backup)
+    memoryFeedbacks = [newItem, ...memoryFeedbacks.filter((f) => f.id !== newItem.id)];
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -71,8 +92,24 @@ export async function POST(request: Request) {
       // Serverless file fallback
     }
 
-    return NextResponse.json({ success: true, feedback: newItem, feedbacks: memoryFeedbacks });
+    if (savedToDb) {
+      const dbRows = await getFeedbacksFromDb();
+      if (dbRows) {
+        const dbItems: FeedbackItem[] = dbRows.map((r) => ({
+          id: r.id,
+          address: r.address,
+          rating: r.rating,
+          category: r.category,
+          comment: r.comment,
+          timestamp: r.timestamp,
+          walletType: r.wallet_type,
+        }));
+        return NextResponse.json({ success: true, feedback: newItem, feedbacks: dbItems, source: "database" });
+      }
+    }
+
+    return NextResponse.json({ success: true, feedback: newItem, feedbacks: memoryFeedbacks, source: "file" });
   } catch {
-    return NextResponse.json({ error: "Failed to process feedback" }, { status: 500 });
+    return NextResponse.json({ error: "Failed to process feedback payload" }, { status: 500 });
   }
 }
