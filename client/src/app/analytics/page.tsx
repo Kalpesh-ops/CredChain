@@ -45,37 +45,29 @@ export default function AnalyticsPage() {
   const { transactions } = useTransactionStore();
   const { data: allInstitutions } = useGetAllInstitutions();
 
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("credchain_feedbacks");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch {
-          return [];
-        }
-      }
-    }
-    return [];
-  });
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(5);
   const [newCategory, setNewCategory] = useState("General");
   const [activeTab, setActiveTab] = useState<"analytics" | "interactions" | "feedback">("analytics");
 
-  // Console Telemetry Logs State initialized with startup logs
-  const [logs, setLogs] = useState<string[]>(() => {
-    const contractAddress = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) || "UNKNOWN";
-    const rpc = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_STELLAR_RPC_URL) || "https://soroban-testnet.stellar.org";
-    return [
-      `[${new Date().toISOString()}] INFO: Initializing RPC listener for contract ${contractAddress.substring(0, 10)}...`,
-      `[${new Date().toISOString()}] INFO: Connecting to Soroban RPC gateway: ${rpc}`,
-      `[${new Date().toISOString()}] INFO: Active network configuration: ${rpc.includes("testnet") ? "Stellar Testnet" : "Stellar Mainnet"}`,
-      `[${new Date().toISOString()}] SUCCESS: Listening for ledger events. Status: OK.`,
-    ];
-  });
+  // Console Telemetry Logs State initialized with empty logs to prevent hydration mismatch
+  const [logs, setLogs] = useState<string[]>([]);
   const [rpcLatency, setRpcLatency] = useState<number | null>(null);
   const [horizonStatus, setHorizonStatus] = useState<"Online" | "Offline" | "Checking">("Checking");
+
+  // Load Feedbacks from Local Storage on Mount (client-only to prevent hydration mismatch)
+  useEffect(() => {
+    const saved = localStorage.getItem("credchain_feedbacks");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setTimeout(() => {
+          setFeedbacks(parsed);
+        }, 0);
+      } catch {}
+    }
+  }, []);
 
   // Fetch actual RPC and Horizon Latency
   useEffect(() => {
