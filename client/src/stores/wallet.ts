@@ -157,7 +157,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         networkPassphrase,
       })
         .addOperation(contract.call(method, ...params))
-        .setTimeout(30)
+        .setTimeout(300)
         .build();
 
       const sim = await server.simulateTransaction(tx);
@@ -230,7 +230,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
             amount: amount,
           })
         )
-        .setTimeout(30)
+        .setTimeout(300)
         .build();
 
       const { StellarWalletsKit } = await import("@creit.tech/stellar-wallets-kit");
@@ -312,7 +312,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       networkPassphrase,
     })
       .addOperation(contract.call(method, ...params))
-      .setTimeout(30)
+      .setTimeout(300)
       .build();
 
     const sim = await server.simulateTransaction(tx);
