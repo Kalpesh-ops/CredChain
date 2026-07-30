@@ -7,7 +7,6 @@ import {
   Ban,
   Loader2,
   CheckCircle,
-  XCircle,
 } from "lucide-react";
 import { useWalletStore } from "@/stores/wallet";
 import {
@@ -19,6 +18,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Web3ErrorAlert } from "@/components/Web3ErrorAlert";
 
 export default function AppPage() {
   const { isConnected, address } = useWalletStore();
@@ -106,12 +106,7 @@ export default function AppPage() {
                     "Register Institution"
                   )}
                 </Button>
-                {registerMutation.isError && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-                    <XCircle className="h-4 w-4" />
-                    {registerMutation.error.message}
-                  </div>
-                )}
+                <Web3ErrorAlert error={registerMutation.error} />
               </div>
             )}
           </CardContent>
@@ -166,12 +161,7 @@ export default function AppPage() {
                     "Issue Certificate"
                   )}
                 </Button>
-                {issueMutation.isError && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-                    <XCircle className="h-4 w-4" />
-                    {issueMutation.error.message}
-                  </div>
-                )}
+                <Web3ErrorAlert error={issueMutation.error} />
               </div>
             )}
           </CardContent>
@@ -222,12 +212,7 @@ export default function AppPage() {
                     "Revoke Certificate"
                   )}
                 </Button>
-                {revokeMutation.isError && (
-                  <div className="flex items-center gap-2 rounded-lg bg-red-50 p-3 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
-                    <XCircle className="h-4 w-4" />
-                    {revokeMutation.error.message}
-                  </div>
-                )}
+                <Web3ErrorAlert error={revokeMutation.error} />
               </div>
             )}
           </CardContent>
