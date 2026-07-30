@@ -36,6 +36,23 @@ jobs:
         run: cargo build --target wasm32v1-none --release
         working-directory: contract
 
+      - name: Verify WASM Size (Soroban 64KB Limit)
+        run: |
+          WASM_FILE="target/wasm32v1-none/release/credchain.wasm"
+          if [ -f "$WASM_FILE" ]; then
+            WASM_SIZE=$(wc -c < "$WASM_FILE")
+            echo "WASM Size: $WASM_SIZE bytes"
+            if [ $WASM_SIZE -gt 65536 ]; then
+              echo "ERROR: WASM file size ($WASM_SIZE bytes) exceeds the Soroban 64KB (65536 bytes) limit!"
+              exit 1
+            fi
+            echo "WASM size validation passed."
+          else
+            echo "ERROR: Compiled WASM file not found at $WASM_FILE!"
+            exit 1
+          fi
+        working-directory: contract
+
   nextjs-frontend:
     name: Build & Test Frontend
     runs-on: ubuntu-latest
@@ -54,6 +71,10 @@ jobs:
         run: npm install
         working-directory: client
 
+      - name: Audit NPM Dependencies
+        run: npm audit --audit-level=critical
+        working-directory: client
+
       - name: Run Linter
         run: npm run lint
         working-directory: client
@@ -70,3 +91,4 @@ jobs:
           NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
           NEXT_PUBLIC_STELLAR_RPC_URL: https://soroban-testnet.stellar.org
           NEXT_PUBLIC_CONTRACT_ADDRESS: CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE
+
