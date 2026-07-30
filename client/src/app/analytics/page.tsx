@@ -56,17 +56,35 @@ export default function AnalyticsPage() {
   const [rpcLatency, setRpcLatency] = useState<number | null>(null);
   const [horizonStatus, setHorizonStatus] = useState<"Online" | "Offline" | "Checking">("Checking");
 
-  // Load Feedbacks from Local Storage on Mount (client-only to prevent hydration mismatch)
+  // Load Feedbacks from Global API Route & Local Storage Fallback
   useEffect(() => {
-    const saved = localStorage.getItem("credchain_feedbacks");
-    if (saved) {
+    const fetchGlobalFeedbacks = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        setTimeout(() => {
-          setFeedbacks(parsed);
-        }, 0);
+        const res = await fetch("/api/feedback");
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.feedbacks)) {
+            setTimeout(() => {
+              setFeedbacks(data.feedbacks);
+              localStorage.setItem("credchain_feedbacks", JSON.stringify(data.feedbacks));
+            }, 0);
+            return;
+          }
+        }
       } catch {}
-    }
+
+      const saved = localStorage.getItem("credchain_feedbacks");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setTimeout(() => {
+            setFeedbacks(parsed);
+          }, 0);
+        } catch {}
+      }
+    };
+
+    fetchGlobalFeedbacks();
   }, []);
 
   // Fetch actual RPC and Horizon Latency
@@ -175,22 +193,45 @@ export default function AnalyticsPage() {
     }
   }, [transactions]);
 
-  // Handle Feedback Submit
-  const handleFeedbackSubmit = (e: React.FormEvent) => {
+  // Handle Feedback Submit (Sends to Global API Route + Local Storage Fallback)
+  const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
     const userAddr = address || "Anonymous User";
-    const newItem: FeedbackItem = {
-      id: "fb-" + Date.now(),
+    const payload = {
       address: userAddr,
       rating: newRating,
       category: newCategory,
-      comment: newComment,
+      comment: newComment.trim(),
       timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
       walletType: isConnected ? "Wallet Signed" : "Direct Input",
     };
 
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.feedbacks)) {
+          setFeedbacks(data.feedbacks);
+          localStorage.setItem("credchain_feedbacks", JSON.stringify(data.feedbacks));
+          setNewComment("");
+          setNewRating(5);
+          setNewCategory("General");
+          return;
+        }
+      }
+    } catch {}
+
+    const newItem: FeedbackItem = {
+      id: "fb-" + Date.now(),
+      ...payload,
+    };
     const updated = [newItem, ...feedbacks];
     setFeedbacks(updated);
     localStorage.setItem("credchain_feedbacks", JSON.stringify(updated));
