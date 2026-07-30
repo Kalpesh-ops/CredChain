@@ -11,14 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Activity,
-  Award,
   BarChart3,
-  CheckCircle,
-  Clock,
   Cpu,
   Database,
   ExternalLink,
-  Info,
   MessageSquare,
   MessageSquareCode,
   ShieldCheck,
@@ -49,14 +45,35 @@ export default function AnalyticsPage() {
   const { transactions } = useTransactionStore();
   const { data: allInstitutions } = useGetAllInstitutions();
 
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("credchain_feedbacks");
+      if (saved) {
+        try {
+          return JSON.parse(saved);
+        } catch {
+          return [];
+        }
+      }
+    }
+    return [];
+  });
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(5);
   const [newCategory, setNewCategory] = useState("General");
   const [activeTab, setActiveTab] = useState<"analytics" | "interactions" | "feedback">("analytics");
 
-  // Console Telemetry Logs State
-  const [logs, setLogs] = useState<string[]>([]);
+  // Console Telemetry Logs State initialized with startup logs
+  const [logs, setLogs] = useState<string[]>(() => {
+    const contractAddress = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_CONTRACT_ADDRESS) || "UNKNOWN";
+    const rpc = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_STELLAR_RPC_URL) || "https://soroban-testnet.stellar.org";
+    return [
+      `[${new Date().toISOString()}] INFO: Initializing RPC listener for contract ${contractAddress.substring(0, 10)}...`,
+      `[${new Date().toISOString()}] INFO: Connecting to Soroban RPC gateway: ${rpc}`,
+      `[${new Date().toISOString()}] INFO: Active network configuration: ${rpc.includes("testnet") ? "Stellar Testnet" : "Stellar Mainnet"}`,
+      `[${new Date().toISOString()}] SUCCESS: Listening for ledger events. Status: OK.`,
+    ];
+  });
   const [rpcLatency, setRpcLatency] = useState<number | null>(null);
   const [horizonStatus, setHorizonStatus] = useState<"Online" | "Offline" | "Checking">("Checking");
 
@@ -104,21 +121,6 @@ export default function AnalyticsPage() {
     return () => clearInterval(interval);
   }, [rpcUrl]);
 
-  // Load Feedbacks from Local Storage (Starts as empty, no fake/fabricated reviews)
-  useEffect(() => {
-    const saved = localStorage.getItem("credchain_feedbacks");
-    if (saved) {
-      try {
-        setFeedbacks(JSON.parse(saved));
-      } catch {
-        setFeedbacks([]);
-      }
-    } else {
-      setFeedbacks([]);
-      localStorage.setItem("credchain_feedbacks", JSON.stringify([]));
-    }
-  }, []);
-
   // Real Telemetry Logs Logger Hook
   useEffect(() => {
     const contractAddress = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || "UNKNOWN";
@@ -128,37 +130,43 @@ export default function AnalyticsPage() {
       `[${new Date().toISOString()}] INFO: Active network configuration: ${rpcUrl.includes("testnet") ? "Stellar Testnet" : "Stellar Mainnet"}`,
       `[${new Date().toISOString()}] SUCCESS: Listening for ledger events. Status: OK.`,
     ];
-    setLogs(initialLogs);
+    setTimeout(() => {
+      setLogs(initialLogs);
+    }, 0);
   }, [rpcUrl]);
 
   useEffect(() => {
     if (!rpcUrl) return;
-    if (syncStatus === "syncing") {
-      setLogs((prev) => [
-        ...prev.slice(-14),
-        `[${new Date().toISOString()}] INFO: Querying Soroban RPC node at ${rpcUrl.replace("https://", "")}...`,
-      ]);
-    } else if (syncStatus === "connected") {
-      setLogs((prev) => [
-        ...prev.slice(-14),
-        `[${new Date().toISOString()}] SUCCESS: Sync complete. Awaiting new ledger closing event...`,
-      ]);
-    } else if (syncStatus === "error") {
-      setLogs((prev) => [
-        ...prev.slice(-14),
-        `[${new Date().toISOString()}] ERROR: RPC query lag or request rate threshold reached. Retrying...`,
-      ]);
-    }
+    setTimeout(() => {
+      if (syncStatus === "syncing") {
+        setLogs((prev) => [
+          ...prev.slice(-14),
+          `[${new Date().toISOString()}] INFO: Querying Soroban RPC node at ${rpcUrl.replace("https://", "")}...`,
+        ]);
+      } else if (syncStatus === "connected") {
+        setLogs((prev) => [
+          ...prev.slice(-14),
+          `[${new Date().toISOString()}] SUCCESS: Sync complete. Awaiting new ledger closing event...`,
+        ]);
+      } else if (syncStatus === "error") {
+        setLogs((prev) => [
+          ...prev.slice(-14),
+          `[${new Date().toISOString()}] ERROR: RPC query lag or request rate threshold reached. Retrying...`,
+        ]);
+      }
+    }, 0);
   }, [syncStatus, lastSyncedAt, rpcUrl]);
 
   // Log actual on-chain events when they are detected
   useEffect(() => {
     if (events.length > 0) {
       const latest = events[0];
-      setLogs((prev) => [
-        ...prev.slice(-14),
-        `[${new Date().toISOString()}] EVENT DETECTED: Type [${latest.type}] | Tx Hash: ${latest.txHash.substring(0, 8)}...`,
-      ]);
+      setTimeout(() => {
+        setLogs((prev) => [
+          ...prev.slice(-14),
+          `[${new Date().toISOString()}] EVENT DETECTED: Type [${latest.type}] | Tx Hash: ${latest.txHash.substring(0, 8)}...`,
+        ]);
+      }, 0);
     }
   }, [events]);
 
@@ -166,10 +174,12 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (transactions.length > 0) {
       const latest = transactions[0];
-      setLogs((prev) => [
-        ...prev.slice(-14),
-        `[${new Date().toISOString()}] TX UPDATE: Status [${latest.status}] | Hash: ${latest.hash.substring(0, 8)}... - ${latest.message}`,
-      ]);
+      setTimeout(() => {
+        setLogs((prev) => [
+          ...prev.slice(-14),
+          `[${new Date().toISOString()}] TX UPDATE: Status [${latest.status}] | Hash: ${latest.hash.substring(0, 8)}... - ${latest.message}`,
+        ]);
+      }, 0);
     }
   }, [transactions]);
 
