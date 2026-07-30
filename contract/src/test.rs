@@ -361,3 +361,53 @@ fn test_issue_certificate_empty_metadata() {
     let result = client.try_issue_certificate(&issuer, &recipient, &String::from_str(&env, ""));
     assert!(result.is_err());
 }
+
+#[test]
+fn test_configure_fees_negative() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(CredChain, ());
+    let client = CredChainClient::new(&env, &contract_id);
+
+    let admin = Address::generate(&env);
+    let token = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    let result = client.try_configure_fees(&admin, &token, &treasury, &-100);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_transfer_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(CredChain, ());
+    let client = CredChainClient::new(&env, &contract_id);
+
+    let admin1 = Address::generate(&env);
+    let admin2 = Address::generate(&env);
+    let token = Address::generate(&env);
+    let treasury = Address::generate(&env);
+
+    // 1. Trying to transfer admin before configure_fees should fail
+    let res = client.try_transfer_admin(&admin1, &admin2);
+    assert!(res.is_err());
+
+    // 2. Configure fees (sets admin1)
+    client.configure_fees(&admin1, &token, &treasury, &100);
+
+    // 3. Rotate admin to admin2
+    client.transfer_admin(&admin1, &admin2);
+
+    // 4. Try to configure fees using old admin1 (should fail)
+    let res_fail = client.try_configure_fees(&admin1, &token, &treasury, &200);
+    assert!(res_fail.is_err());
+
+    // 5. Configure fees using new admin2 (should succeed)
+    client.configure_fees(&admin2, &token, &treasury, &200);
+
+    // 6. Try to rotate admin using non-admin (should fail)
+    let bad_actor = Address::generate(&env);
+    let res_fail2 = client.try_transfer_admin(&bad_actor, &admin1);
+    assert!(res_fail2.is_err());
+}
