@@ -19,6 +19,8 @@ export const metadata: Metadata = {
     "Decentralized certificate issuance platform on Stellar Soroban. Issue, verify, and revoke tamper-proof credentials.",
 };
 
+import { Footer } from "@/components/Footer";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -45,7 +47,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-50">
-        <Providers>{children}</Providers>
+        <Providers>
+          <div className="flex-1 flex flex-col">{children}</div>
+          <Footer />
+        </Providers>
       </body>
     </html>
   );
