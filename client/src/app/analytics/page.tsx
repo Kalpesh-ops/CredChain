@@ -580,57 +580,56 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       )}
-
-      {activeTab === "feedback" && (
+{activeTab === "feedback" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Submit Feedback Form */}
           <div className="space-y-6">
-            <Card>
+            <Card className="border-zinc-200 dark:border-zinc-800 shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <MessageSquareCode className="h-5 w-5 text-blue-600" />
-                  Submit Feedback
+                  <MessageSquareCode className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  Post to Community Forum
                 </CardTitle>
                 <CardDescription>
-                  Submit feedback from your connected wallet address
+                  Share your public review, feature request, or feedback with all users worldwide
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleFeedbackSubmit} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-500">Wallet Address</label>
+                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Wallet Address / Author</label>
                     <Input
                       readOnly
                       disabled
-                      value={isConnected && address ? address : "Not Connected (Submitting as Anonymous)"}
+                      value={isConnected && address ? address : "Anonymous Community Member"}
                       className="bg-zinc-50 text-zinc-500 font-mono text-[11px] dark:bg-zinc-900"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-500">Category</label>
+                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Topic Category</label>
                     <select
-                      className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 focus:outline-none"
+                      className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       value={newCategory}
                       onChange={(e) => setNewCategory(e.target.value)}
                     >
-                      <option value="General">General Platform</option>
-                      <option value="UI/UX">UI & User Experience</option>
-                      <option value="Performance">Speed & Performance</option>
-                      <option value="Contract">Smart Contract / Wallet</option>
+                      <option value="General">General Platform Review</option>
+                      <option value="UI/UX">UI &amp; User Experience</option>
+                      <option value="Performance">Speed &amp; Performance</option>
+                      <option value="Contract">Soroban Contract &amp; Wallets</option>
                       <option value="Suggestions">Feature Suggestions</option>
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-500">Rating (1 to 5 Stars)</label>
+                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Rating (1 to 5 Stars)</label>
                     <div className="flex gap-1.5">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
                           type="button"
                           onClick={() => setNewRating(star)}
-                          className="focus:outline-none text-yellow-500"
+                          className="focus:outline-none text-yellow-500 hover:scale-110 transition-transform"
                         >
                           <Star
                             className={`h-6 w-6 ${
@@ -643,28 +642,28 @@ export default function AnalyticsPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-zinc-500">Comments</label>
+                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">Review Message</label>
                     <textarea
-                      placeholder="Write your feedback comment..."
+                      placeholder="Write your public review or thoughts about CredChain..."
                       rows={4}
                       required
                       value={newComment}
                       onChange={(e) => setNewComment(e.target.value)}
-                      className="w-full rounded-md border border-zinc-200 bg-white p-3 text-xs text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="w-full rounded-md border border-zinc-200 bg-white p-3 text-xs text-zinc-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                     />
                   </div>
 
-                  <Button type="submit" className="w-full text-xs">
-                    Submit Feedback
+                  <Button type="submit" className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
+                    Post to Public Forum
                   </Button>
                 </form>
               </CardContent>
             </Card>
 
             {/* Rating Breakdown stats */}
-            <Card>
+            <Card className="border-zinc-200 dark:border-zinc-800">
               <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-semibold">Feedback Metrics</CardTitle>
+                <CardTitle className="text-sm font-semibold">Community Rating Score</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -675,13 +674,13 @@ export default function AnalyticsPage() {
                         <Star
                           key={star}
                           className={`h-3.5 w-3.5 ${
-                            star <= Math.round(parseFloat(avgRating)) ? "fill-yellow-500" : "text-zinc-300"
+                            star <= Math.round(parseFloat(avgRating)) ? "fill-yellow-500" : "text-zinc-300 dark:text-zinc-700"
                           }`}
                         />
                       ))}
                     </div>
                     <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      Based on {feedbacks.length} actual reviews
+                      Based on {feedbacks.length} global community posts
                     </p>
                   </div>
                 </div>
@@ -689,8 +688,8 @@ export default function AnalyticsPage() {
                 <div className="space-y-1.5">
                   {ratingDistribution.map((dist) => (
                     <div key={dist.rating} className="flex items-center gap-2 text-xs">
-                      <span className="w-3 text-right text-[11px] font-bold text-zinc-600">{dist.rating}</span>
-                      <div className="h-2 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800">
+                      <span className="w-3 text-right text-[11px] font-bold text-zinc-600 dark:text-zinc-400">{dist.rating}</span>
+                      <div className="h-2 flex-1 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
                         <div
                           className="h-full rounded-full bg-yellow-500"
                           style={{ width: `${dist.pct}%` }}
@@ -704,66 +703,70 @@ export default function AnalyticsPage() {
             </Card>
           </div>
 
-          {/* Feedback Feed */}
-          <Card className="lg:col-span-2">
+          {/* Feedback Forum Feed */}
+          <Card className="lg:col-span-2 border-zinc-200 dark:border-zinc-800">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <ThumbsUp className="h-5 w-5 text-blue-600" />
-                User Feedback Summary
-              </CardTitle>
-              <CardDescription>
-                Actual reviews and feedback collected from users onboarded on the platform
-              </CardDescription>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ThumbsUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    Community Feedback Forum
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Shared public forum — real feedback, reviews, and feature requests posted by users worldwide
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="w-fit text-[10px] text-emerald-600 dark:text-emerald-400 border-emerald-500/30">
+                  {feedbacks.length} Public Posts
+                </Badge>
+              </div>
             </CardHeader>
             <CardContent>
               {feedbacks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-zinc-500 dark:text-zinc-400">
-                  <MessageSquare className="h-12 w-12 mb-4 opacity-50" />
-                  <p className="text-sm font-semibold">No feedback submitted yet</p>
-                  <p className="text-xs mt-1">
-                    Connect your wallet and submit the form to leave the first review!
+                  <MessageSquare className="h-12 w-12 mb-4 opacity-40 text-emerald-500" />
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No community posts yet</p>
+                  <p className="text-xs mt-1 text-zinc-500 max-w-sm text-center">
+                    Be the first to share your thoughts, test feedback, or feature requests on the public forum!
                   </p>
                 </div>
               ) : (
-                <div className="max-h-[500px] overflow-y-auto pr-1 space-y-4">
+                <div className="max-h-[600px] overflow-y-auto pr-1 space-y-4">
                   {feedbacks.map((fb) => (
                     <div
                       key={fb.id}
-                      className="rounded-lg border border-zinc-100 bg-zinc-50/50 p-4 dark:border-zinc-800 dark:bg-zinc-900/30"
+                      className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3 dark:border-zinc-800 dark:bg-zinc-950/60 shadow-sm hover:border-emerald-500/30 transition-all"
                     >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                            {truncateAddress(fb.address, 10)}
+                          <span className="font-mono text-xs font-semibold text-zinc-900 dark:text-zinc-100">
+                            {truncateAddress(fb.address)}
                           </span>
-                          {fb.walletType && (
-                            <Badge variant="secondary" className="text-[9px] px-1 py-0 select-none">
-                              {fb.walletType}
-                            </Badge>
-                          )}
-                          <Badge variant="success" className="text-[9px] bg-green-500/10 text-green-600 border border-green-500/20 font-medium">
-                            Verified User
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-zinc-400 font-mono">{fb.timestamp}</span>
-                          <Badge variant="outline" className="text-[9px] uppercase tracking-wide">
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0.2 border-emerald-500/30 text-emerald-600 dark:text-emerald-400">
                             {fb.category}
                           </Badge>
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0.2 text-zinc-500">
+                            {fb.walletType}
+                          </Badge>
                         </div>
+                        <span className="text-[10px] text-zinc-500 dark:text-zinc-400 font-mono">
+                          {fb.timestamp}
+                        </span>
                       </div>
 
-                      <div className="mt-2.5 flex items-center gap-0.5 text-yellow-500">
+                      <div className="flex items-center gap-1 text-yellow-500">
                         {[1, 2, 3, 4, 5].map((star) => (
                           <Star
                             key={star}
-                            className={`h-3 w-3 ${star <= fb.rating ? "fill-yellow-500" : "text-zinc-200 dark:text-zinc-800"}`}
+                            className={`h-3.5 w-3.5 ${
+                              star <= fb.rating ? "fill-yellow-500" : "text-zinc-200 dark:text-zinc-800"
+                            }`}
                           />
                         ))}
                       </div>
 
-                      <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed italic">
-                        &ldquo;{fb.comment}&rdquo;
+                      <p className="text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed italic bg-zinc-50 dark:bg-zinc-900/40 p-3 rounded-lg border border-zinc-100 dark:border-zinc-800/60">
+                        &quot;{fb.comment}&quot;
                       </p>
                     </div>
                   ))}
