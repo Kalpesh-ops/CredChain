@@ -13,6 +13,8 @@ export interface FeedbackRecord {
 const rawConnectionString =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
+  process.env.POSTGRES_PRISMA_URL ||
+  process.env.POSTGRES_URL_NON_POOLING ||
   process.env.SUPABASE_DATABASE_URL ||
   process.env.NEON_DATABASE_URL ||
   "postgresql://postgres.bwsqowzczfuzrdjsiwvx:AF-XJ8xavtg$x8w@aws-0-ap-south-1.pooler.supabase.com:6543/postgres";
