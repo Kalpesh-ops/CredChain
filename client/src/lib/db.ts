@@ -50,6 +50,7 @@ export async function isDbConnected(): Promise<boolean> {
 export async function initDbSchema(): Promise<boolean> {
   if (!pool) return false;
   try {
+    // Schema & Security Operations (Row Level Security & Indices)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS feedbacks (
         id VARCHAR(100) PRIMARY KEY,
@@ -64,10 +65,30 @@ export async function initDbSchema(): Promise<boolean> {
 
       CREATE INDEX IF NOT EXISTS idx_feedbacks_created_at ON feedbacks(created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_feedbacks_rating ON feedbacks(rating);
+
+      ALTER TABLE feedbacks ENABLE ROW LEVEL SECURITY;
+
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = 'feedbacks' AND policyname = 'Allow public read access'
+        ) THEN
+          CREATE POLICY "Allow public read access" ON feedbacks FOR SELECT USING (true);
+        END IF;
+      END $$;
+
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_policies WHERE tablename = 'feedbacks' AND policyname = 'Allow public insert'
+        ) THEN
+          CREATE POLICY "Allow public insert" ON feedbacks FOR INSERT WITH CHECK (rating >= 1 AND rating <= 5 AND length(comment) > 0);
+        END IF;
+      END $$;
     `);
     return true;
   } catch (err) {
-    console.error("[Database] Failed to initialize database schema:", err);
+    console.error("[Database] Failed to initialize database schema & security RLS:", err);
     return false;
   }
 }
