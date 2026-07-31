@@ -10,7 +10,7 @@ export interface FeedbackRecord {
   wallet_type: string;
 }
 
-const connectionString =
+const rawConnectionString =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
   process.env.SUPABASE_DATABASE_URL ||
@@ -18,8 +18,9 @@ const connectionString =
 
 let pool: Pool | null = null;
 
-if (connectionString) {
+if (rawConnectionString) {
   try {
+    const connectionString = rawConnectionString.trim().replace(/^["']|["']$/g, "");
     pool = new Pool({
       connectionString,
       ssl:
@@ -28,9 +29,10 @@ if (connectionString) {
           : { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
     });
   } catch (err) {
-    console.error("Failed to initialize PostgreSQL pool:", err);
+    console.error("[Database] Failed to initialize PostgreSQL connection pool:", err);
   }
 }
 
@@ -52,17 +54,20 @@ export async function initDbSchema(): Promise<boolean> {
       CREATE TABLE IF NOT EXISTS feedbacks (
         id VARCHAR(100) PRIMARY KEY,
         address VARCHAR(100) NOT NULL,
-        rating INT NOT NULL,
-        category VARCHAR(50) NOT NULL,
+        rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        category VARCHAR(50) NOT NULL DEFAULT 'General',
         comment TEXT NOT NULL,
         timestamp VARCHAR(50) NOT NULL,
-        wallet_type VARCHAR(50) NOT NULL,
+        wallet_type VARCHAR(50) NOT NULL DEFAULT 'Direct Input',
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE INDEX IF NOT EXISTS idx_feedbacks_created_at ON feedbacks(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_feedbacks_rating ON feedbacks(rating);
     `);
     return true;
   } catch (err) {
-    console.error("Failed to initialize database schema:", err);
+    console.error("[Database] Failed to initialize database schema:", err);
     return false;
   }
 }
@@ -79,7 +84,7 @@ export async function getFeedbacksFromDb(): Promise<FeedbackRecord[] | null> {
     `);
     return result.rows;
   } catch (err) {
-    console.error("Error fetching feedbacks from DB:", err);
+    console.error("[Database] Error fetching feedbacks from DB:", err);
     return null;
   }
 }
@@ -106,7 +111,7 @@ export async function saveFeedbackToDb(item: {
     );
     return true;
   } catch (err) {
-    console.error("Error saving feedback to DB:", err);
+    console.error("[Database] Error saving feedback to DB:", err);
     return false;
   }
 }
