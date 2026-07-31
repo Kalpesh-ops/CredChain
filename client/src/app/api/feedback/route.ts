@@ -65,17 +65,24 @@ export async function POST(request: Request) {
     const { address, rating, category, comment, timestamp, walletType } = body;
 
     if (!comment || typeof comment !== "string" || !comment.trim()) {
-      return NextResponse.json({ error: "Comment is required" }, { status: 400 });
+      return NextResponse.json({ error: "Comment is required and must be a non-empty string" }, { status: 400 });
     }
+
+    // Security Hardening & Input Sanitization
+    const sanitizedComment = comment.trim().substring(0, 500);
+    const sanitizedAddress = String(address || "Anonymous User").trim().substring(0, 100);
+    const sanitizedCategory = String(category || "General").trim().substring(0, 50);
+    const sanitizedWalletType = String(walletType || "Direct Input").trim().substring(0, 50);
+    const sanitizedRating = Math.max(1, Math.min(5, Math.floor(Number(rating) || 5)));
 
     const newItem: FeedbackItem = {
       id: "fb-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
-      address: address || "Anonymous User",
-      rating: Number(rating) || 5,
-      category: category || "General",
-      comment: comment.trim(),
-      timestamp: timestamp || new Date().toISOString().replace("T", " ").substring(0, 19),
-      walletType: walletType || "Direct Input",
+      address: sanitizedAddress,
+      rating: sanitizedRating,
+      category: sanitizedCategory,
+      comment: sanitizedComment,
+      timestamp: String(timestamp || new Date().toISOString().replace("T", " ").substring(0, 19)).substring(0, 50),
+      walletType: sanitizedWalletType,
     };
 
     // Save to Database (Cloud DB Persistence)
