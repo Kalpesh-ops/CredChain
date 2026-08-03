@@ -5,8 +5,8 @@ CredChain is a decentralized certificate issuance platform built on the Stellar 
 ## Live Demo & Deployment Info
 
 *   **Live Demo URL**: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
-*   **Deployed Contract Address**: `CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE`
-*   **Successful Contract Call Tx Hash**: `872a109b7bf635750440c9ba1a6444127205126e88254761d7c7beb300980ec1` (Stellar Testnet)
+*   **Deployed Contract Address**: `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`
+*   **Successful Contract Call Tx Hash**: `dfeecec95a11080d9673db9ef1e5e54912fcd81bd85b7f9232ce1c2a4f164d6d` (Stellar Testnet)
 
 ## System Architecture
 

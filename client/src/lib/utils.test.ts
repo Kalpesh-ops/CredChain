@@ -15,9 +15,9 @@ describe("Utility helper functions", () => {
     });
 
     it("truncates Stellar addresses correctly", () => {
-      const address = "CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE";
-      expect(truncateAddress(address)).toBe("CBMYQY...AQDXFE");
-      expect(truncateAddress(address, 4)).toBe("CBMY...DXFE");
+      const address = "CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO";
+      expect(truncateAddress(address)).toBe("CBZ5KP...O6GAHO");
+      expect(truncateAddress(address, 4)).toBe("CBZ5...GAHO");
     });
   });
 

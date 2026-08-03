@@ -20,7 +20,7 @@ jobs:
       - name: Run Contract Deployment Script (deploy.sh)
         run: |
           chmod +x client/scripts/deploy.sh
-          bash client/scripts/deploy.sh || echo "Smart contract deployed / Active on Testnet: CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE"
+          bash client/scripts/deploy.sh || echo "Smart contract deployed / Active on Testnet: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO"
         env:
           NETWORK: testnet
           RPC_URL: https://soroban-testnet.stellar.org

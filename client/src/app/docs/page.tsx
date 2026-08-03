@@ -124,7 +124,7 @@ export default function DocsOverviewPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 gap-2">
             <span className="text-zinc-500 dark:text-zinc-400">Deployed Contract ID:</span>
             <span className="text-emerald-600 dark:text-emerald-400 font-bold select-all break-all">
-              CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE
+              CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
             </span>
           </div>
 
