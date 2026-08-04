@@ -114,7 +114,7 @@ cp .env.example .env
 NEXT_PUBLIC_STELLAR_NETWORK=testnet
 NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_CONTRACT_ADDRESS=CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE
+NEXT_PUBLIC_CONTRACT_ADDRESS=CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
 ```
 
 ### Local Development
@@ -253,7 +253,7 @@ The platform displays proof of 11 unique onboarded user wallet addresses with tr
 ✅ **Balance Display** — Fetches and displays actual XLM balance from Horizon.
 ✅ **Testnet Transaction** — Send XLM on Testnet directly in the dApp.
 ✅ **Error Handling** — Robust handlers for wallet-not-installed, user-rejections, and insufficient-balances.
-✅ **Smart Contract Deployed** — Deployed at `CBMYQYSWFPCXG5B5WXC73P4V6WR765EGA2YSMMSNM32I47Q4YYAQDXFE`.
+✅ **Smart Contract Deployed** — Deployed at `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`.
 ✅ **Contract Read & Write** — Fully integrated read (institution registration checks, certificate verification) and write (issue certificate, register institution, revoke certificate) interactions.
 ✅ **Event Listener & Real-Time Sync Indicator** — Real-time event polling, query cache invalidation, and live sync status badge in the Navbar.
 ✅ **15+ Meaningful Commits** — Organized Git history reflecting iterative development.
