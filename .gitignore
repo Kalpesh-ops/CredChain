@@ -1,0 +1,10 @@
+# Vercel CLI project link (contains project/org IDs)
+.vercel
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+.vercel
+.env*
