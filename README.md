@@ -192,9 +192,15 @@ npm run test
 8. Runs all 54 frontend unit tests (`npm run test`).
 9. Performs Next.js production compilation to verify build soundness.
 
-**CD** — `.github/workflows/cd.yml`, on push to `main`: installs the Stellar CLI,
-deploys the contract via `client/scripts/deploy.sh`, and deploys the frontend to
-Vercel. Both steps fail the run if the underlying command fails.
+**CD** — `.github/workflows/cd.yml`:
+*   **Frontend** deploys to Vercel on every push to `main`.
+*   **Contract** deploys only via manual `workflow_dispatch` with the `deploy_contract`
+    input checked. A deploy mints a new contract address and starts from empty state,
+    so it is deliberately not tied to commits. After deploying, update
+    `NEXT_PUBLIC_CONTRACT_ADDRESS` in the Vercel project env, `client/.env`,
+    `.github/workflows/ci.yml`, and this README — nothing propagates it automatically.
+
+Neither workflow swallows command failures.
 
 ---
 

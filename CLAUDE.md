@@ -32,7 +32,9 @@ cd client && npm run lint && npm run build   # what CI enforces
 
 Contract `Makefile` targets (`build`, `test`, `deploy`, `fmt`, `clean`) wrap the same commands.
 
-Deployment: `bash client/scripts/deploy.sh` generates/funds a `dev` key, builds, deploys to testnet, and regenerates TypeScript bindings. Override via `NETWORK`, `RPC_URL`, `NETWORK_PASSPHRASE`, `SOURCE_ACCOUNT`, `WASM_PATH` env vars.
+Deployment: `bash client/scripts/deploy.sh` generates/funds a `dev` key, builds, deploys to testnet with the admin bound via the constructor, and regenerates TypeScript bindings. Override via `NETWORK`, `RPC_URL`, `NETWORK_PASSPHRASE`, `SOURCE_ACCOUNT`, `WASM_PATH` env vars.
+
+A deploy always mints a **new** contract address with empty state — there is no upgrade path. The address must then be propagated by hand to four places: the Vercel project env, `client/.env`, `.github/workflows/ci.yml`, and `README.md`. Because of that, contract deployment in `cd.yml` is gated behind a manual `workflow_dispatch` input rather than running on push.
 
 CI (`.github/workflows/ci.yml`) additionally asserts the compiled WASM stays under Soroban's 64 KB limit — keep this in mind when adding contract code. `cd.yml` owns deployment exclusively; `ci.yml` is build/test/lint only. Neither workflow swallows command failures — do not reintroduce `|| echo` or `|| true` around a deploy or audit step, which previously made every CD run report success without deploying anything.
 

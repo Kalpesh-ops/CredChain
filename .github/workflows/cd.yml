@@ -3,10 +3,19 @@ name: CD Deployment Pipeline
 on:
   push:
     branches: [ main ]
+  # Contract deployment is manual. A deploy mints a brand-new contract address
+  # and orphans all prior on-chain state, so it must not ride on every commit.
+  workflow_dispatch:
+    inputs:
+      deploy_contract:
+        description: "Deploy a NEW contract instance (new address, empty state)"
+        type: boolean
+        default: false
 
 jobs:
   deploy-smart-contract:
     name: Deploy Smart Contract to Stellar Testnet
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy_contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -34,6 +43,10 @@ jobs:
           RPC_URL: https://soroban-testnet.stellar.org
           NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
           SOURCE_ACCOUNT: dev
+
+      - name: Remind to propagate the new address
+        run: |
+          echo "::warning::A new contract was deployed. Update NEXT_PUBLIC_CONTRACT_ADDRESS in the Vercel project env, client/.env, .github/workflows/ci.yml, and README.md — nothing does this automatically."
 
   deploy-frontend:
     name: Deploy Frontend to Vercel
