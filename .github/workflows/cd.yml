@@ -17,14 +17,23 @@ jobs:
         with:
           target: wasm32v1-none
 
+      # deploy.sh drives the `stellar` CLI end to end (build, deploy, bindings).
+      # Without this step every stellar invocation in the script is "command not found".
+      - name: Install Stellar CLI
+        run: cargo install --locked stellar-cli
+
+      # SOURCE_ACCOUNT names a key in the runner's local keystore. deploy.sh
+      # generates and funds it on testnet when absent, and binds it as the
+      # contract admin via the constructor.
       - name: Run Contract Deployment Script (deploy.sh)
         run: |
           chmod +x client/scripts/deploy.sh
-          bash client/scripts/deploy.sh || echo "Smart contract deployed / Active on Testnet: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO"
+          bash client/scripts/deploy.sh
         env:
           NETWORK: testnet
           RPC_URL: https://soroban-testnet.stellar.org
           NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+          SOURCE_ACCOUNT: dev
 
   deploy-frontend:
     name: Deploy Frontend to Vercel
@@ -45,8 +54,7 @@ jobs:
         working-directory: client
 
       - name: Deploy Frontend to Vercel Production
-        run: |
-          npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes || echo "Frontend deployment complete / Live on Vercel"
+        run: npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

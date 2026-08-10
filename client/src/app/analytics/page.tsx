@@ -26,6 +26,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { truncateAddress, getExplorerUrl } from "@/lib/utils";
+import { buildFeedbackMessage } from "@/lib/feedback-message";
 
 interface FeedbackItem {
   id: string;
@@ -50,6 +51,8 @@ export default function AnalyticsPage() {
   const [newRating, setNewRating] = useState(5);
   const [newCategory, setNewCategory] = useState("General");
   const [activeTab, setActiveTab] = useState<"analytics" | "interactions" | "feedback">("analytics");
+  const [submitState, setSubmitState] = useState<"idle" | "submitting">("idle");
+  const [submitNote, setSubmitNote] = useState<string | null>(null);
 
   // Console Telemetry Logs State initialized with empty logs to prevent hydration mismatch
   const [logs, setLogs] = useState<string[]>([]);
@@ -193,20 +196,47 @@ export default function AnalyticsPage() {
     }
   }, [transactions]);
 
-  // Handle Feedback Submit (Sends to Global API Route + Local Storage Fallback)
+  // Handle Feedback Submit. When a wallet is connected we sign a canonical message
+  // so the server can prove the submission really came from that address; the
+  // server treats anything unsigned as anonymous regardless of what we send.
   const handleFeedbackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    const userAddr = address || "Anonymous User";
-    const payload = {
-      address: userAddr,
+    setSubmitState("submitting");
+    setSubmitNote(null);
+
+    const comment = newComment.trim();
+    const timestamp = new Date().toISOString();
+    const base = {
       rating: newRating,
       category: newCategory,
-      comment: newComment.trim(),
-      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
-      walletType: isConnected ? "Wallet Signed" : "Direct Input",
+      comment,
+      timestamp,
     };
+
+    let signature: string | null = null;
+    if (isConnected && address) {
+      try {
+        const message = buildFeedbackMessage({ address, ...base });
+        const { StellarWalletsKit } = await import(
+          "@creit.tech/stellar-wallets-kit"
+        );
+        const result = await StellarWalletsKit.signMessage(message, { address });
+        signature = result.signedMessage;
+      } catch {
+        // Albedo, Rabet and the hardware-wallet modules do not implement
+        // SEP-0043 signMessage. Fall back to an anonymous submission rather
+        // than failing the whole thing.
+        setSubmitNote(
+          "Your wallet does not support message signing, so this was posted anonymously."
+        );
+      }
+    }
+
+    const payload = signature
+      ? { address, ...base, signature }
+      : { ...base };
 
     try {
       const res = await fetch("/api/feedback", {
@@ -223,21 +253,20 @@ export default function AnalyticsPage() {
           setNewComment("");
           setNewRating(5);
           setNewCategory("General");
+          setSubmitState("idle");
           return;
         }
       }
-    } catch {}
 
-    const newItem: FeedbackItem = {
-      id: "fb-" + Date.now(),
-      ...payload,
-    };
-    const updated = [newItem, ...feedbacks];
-    setFeedbacks(updated);
-    localStorage.setItem("credchain_feedbacks", JSON.stringify(updated));
-    setNewComment("");
-    setNewRating(5);
-    setNewCategory("General");
+      const err = await res.json().catch(() => null);
+      setSubmitNote(
+        err?.error || "Could not submit feedback. Please try again."
+      );
+      setSubmitState("idle");
+    } catch {
+      setSubmitNote("Network error — could not reach the server.");
+      setSubmitState("idle");
+    }
   };
 
   // Calculate stats based on actual events & transactions
@@ -653,9 +682,31 @@ export default function AnalyticsPage() {
                     />
                   </div>
 
-                  <Button type="submit" className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold">
-                    Post to Public Forum
+                  <Button
+                    type="submit"
+                    disabled={submitState === "submitting"}
+                    className="w-full text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                  >
+                    {submitState === "submitting"
+                      ? isConnected
+                        ? "Waiting for wallet signature..."
+                        : "Posting..."
+                      : isConnected
+                        ? "Sign & Post to Public Forum"
+                        : "Post Anonymously"}
                   </Button>
+
+                  {submitNote && (
+                    <p className="text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+                      {submitNote}
+                    </p>
+                  )}
+
+                  <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    {isConnected
+                      ? "Your wallet will ask you to sign this review so it can be attributed to your address on the public forum."
+                      : "Connect a wallet to post under your address. Unsigned reviews are published anonymously."}
+                  </p>
                 </form>
               </CardContent>
             </Card>

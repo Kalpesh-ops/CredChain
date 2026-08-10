@@ -1,6 +1,5 @@
 export interface Institution {
   name: string;
-  verified: boolean;
   cert_count: number;
 }
 

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { Keypair } from "@stellar/stellar-sdk";
 import { getFeedbacksFromDb, saveFeedbackToDb, isDbConnected } from "@/lib/db";
+import { buildFeedbackMessage, isTimestampFresh } from "@/lib/feedback-message";
 
 export interface FeedbackItem {
   id: string;
@@ -59,10 +61,41 @@ export async function GET() {
   return NextResponse.json({ feedbacks: memoryFeedbacks, source: "file" });
 }
 
+/**
+ * Verifies that `signature` is a valid Ed25519 signature over the canonical
+ * feedback message for `address`. Returns false for any malformed input rather
+ * than throwing — a bad signature and a bad public key are both just "unverified".
+ */
+function verifyFeedbackSignature(
+  address: string,
+  signature: string,
+  rating: number,
+  category: string,
+  comment: string,
+  timestamp: string
+): boolean {
+  try {
+    if (!isTimestampFresh(timestamp)) return false;
+    const message = buildFeedbackMessage({
+      address,
+      rating,
+      category,
+      comment,
+      timestamp,
+    });
+    return Keypair.fromPublicKey(address).verify(
+      Buffer.from(message, "utf-8"),
+      Buffer.from(signature, "base64")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { address, rating, category, comment, timestamp, walletType } = body;
+    const { address, rating, category, comment, timestamp, signature } = body;
 
     if (!comment || typeof comment !== "string" || !comment.trim()) {
       return NextResponse.json({ error: "Comment is required and must be a non-empty string" }, { status: 400 });
@@ -70,19 +103,51 @@ export async function POST(request: Request) {
 
     // Security Hardening & Input Sanitization
     const sanitizedComment = comment.trim().substring(0, 500);
-    const sanitizedAddress = String(address || "Anonymous User").trim().substring(0, 100);
     const sanitizedCategory = String(category || "General").trim().substring(0, 50);
-    const sanitizedWalletType = String(walletType || "Direct Input").trim().substring(0, 50);
     const sanitizedRating = Math.max(1, Math.min(5, Math.floor(Number(rating) || 5)));
+    const sanitizedTimestamp = String(
+      timestamp || new Date().toISOString()
+    ).substring(0, 50);
+
+    // Attribution is derived from a verified signature, never from the request
+    // body. An unsigned submission is always anonymous, no matter what `address`
+    // or `walletType` the caller sent.
+    let attributedAddress = "Anonymous User";
+    let attributedWalletType = "Direct Input";
+
+    if (signature) {
+      const claimedAddress = String(address || "").trim();
+      const verified = verifyFeedbackSignature(
+        claimedAddress,
+        String(signature),
+        sanitizedRating,
+        sanitizedCategory,
+        sanitizedComment,
+        sanitizedTimestamp
+      );
+
+      if (!verified) {
+        return NextResponse.json(
+          {
+            error:
+              "Signature verification failed. The signature does not match the submitted content, the address, or the request has expired.",
+          },
+          { status: 401 }
+        );
+      }
+
+      attributedAddress = claimedAddress.substring(0, 100);
+      attributedWalletType = "Wallet Signed";
+    }
 
     const newItem: FeedbackItem = {
       id: "fb-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
-      address: sanitizedAddress,
+      address: attributedAddress,
       rating: sanitizedRating,
       category: sanitizedCategory,
       comment: sanitizedComment,
-      timestamp: String(timestamp || new Date().toISOString().replace("T", " ").substring(0, 19)).substring(0, 50),
-      walletType: sanitizedWalletType,
+      timestamp: sanitizedTimestamp,
+      walletType: attributedWalletType,
     };
 
     // Save to Database (Cloud DB Persistence)

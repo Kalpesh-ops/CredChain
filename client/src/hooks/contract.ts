@@ -42,7 +42,6 @@ export function useGetInstitution(address: string | null) {
       const inst = result as Record<string, unknown>;
       return {
         name: inst.name as string,
-        verified: inst.verified as boolean,
         cert_count: (inst.cert_count as number) ?? 0,
       };
     },

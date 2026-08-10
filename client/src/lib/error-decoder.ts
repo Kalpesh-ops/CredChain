@@ -118,73 +118,66 @@ export function decodeError(error: unknown): DecodedError {
     };
   }
 
-  // 3. Custom Soroban Contract Revert Codes (Errors 100-106)
-  if (message.includes("Error(Contract, U32(1))") || message.includes("U32(1)") || message.includes("NotAuthorized") || message.includes("Error 100")) {
+  // 3. Custom Soroban Contract Revert Codes.
+  // These MUST stay in sync with the ContractError enum in contract/src/lib.rs:
+  //   1 = NotRegistered, 2 = AlreadyRegistered, 3 = NotAuthorized,
+  //   4 = CertificateNotFound, 5 = AlreadyRevoked, 6 = InvalidInput
+  if (message.includes("Error(Contract, U32(1))") || message.includes("U32(1)") || message.includes("NotRegistered")) {
+    return {
+      code: "CONTRACT_NOT_REGISTERED",
+      title: "Institution Not Registered",
+      description: "The contract rejected the call (Contract Revert U32(1)). This wallet is not registered as an institution, and only registered institutions can issue certificates.",
+      remedy: "Register your wallet as an institution on the App page first, then retry the issuance.",
+      severity: "medium",
+    };
+  }
+
+  if (message.includes("Error(Contract, U32(2))") || message.includes("U32(2)") || message.includes("AlreadyRegistered")) {
+    return {
+      code: "CONTRACT_ALREADY_REGISTERED",
+      title: "Institution Already Registered",
+      description: "The registration failed (Contract Revert U32(2)). This wallet address is already registered as an institution on CredChain.",
+      remedy: "An address can only be registered once. You can go straight to issuing certificates with this wallet.",
+      severity: "low",
+    };
+  }
+
+  if (message.includes("Error(Contract, U32(3))") || message.includes("U32(3)") || message.includes("NotAuthorized")) {
     return {
       code: "CONTRACT_NOT_AUTHORIZED",
       title: "Action Unauthorized",
-      description: "The smart contract rejected your request (Contract Revert U32(1)). Only the contract administrator account is authorized to invoke this function.",
-      remedy: "Check that your connected wallet matches the current administrator key (Privilege Key).",
+      description: "The contract rejected the call (Contract Revert U32(3)). Certificates can only be revoked by the institution that issued them, and fee configuration is restricted to the contract admin.",
+      remedy: "Connect the wallet that issued this certificate — or, for fee changes, the admin wallet bound at deployment.",
       severity: "high",
     };
   }
 
-  if (message.includes("Error(Contract, U32(2))") || message.includes("U32(2)") || message.includes("InstitutionAlreadyExists") || message.includes("Error 101")) {
-    return {
-      code: "CONTRACT_INSTITUTION_EXISTS",
-      title: "Institution Already Registered",
-      description: "The smart contract registration failed (Contract Revert U32(2)). This wallet address is already registered as an active institution on CredChain.",
-      remedy: "An institution can only be registered once. Access the issuer console using your registered address.",
-      severity: "medium",
-    };
-  }
-
-  if (message.includes("Error(Contract, U32(3))") || message.includes("U32(3)") || message.includes("InstitutionNotRegistered") || message.includes("Error 102")) {
-    return {
-      code: "CONTRACT_INSTITUTION_NOT_FOUND",
-      title: "Institution Not Registered",
-      description: "The operation failed because the caller is not a registered institution (Contract Revert U32(3)). Only registered institutions can issue or revoke credentials.",
-      remedy: "Navigate to the home page or register dashboard and sign up your institution wallet first.",
-      severity: "high",
-    };
-  }
-
-  if (message.includes("Error(Contract, U32(4))") || message.includes("U32(4)") || message.includes("CertificateAlreadyExists") || message.includes("Error 103")) {
-    return {
-      code: "CONTRACT_CERTIFICATE_EXISTS",
-      title: "Certificate ID Already Issued",
-      description: "The contract rejected the issuance (Contract Revert U32(4)). A credential with this specific Certificate ID has already been recorded on the ledger.",
-      remedy: "Choose a different unique ID number or counter sequence to register this new certificate.",
-      severity: "medium",
-    };
-  }
-
-  if (message.includes("Error(Contract, U32(5))") || message.includes("U32(5)") || message.includes("CertificateNotExists") || message.includes("Error 104")) {
+  if (message.includes("Error(Contract, U32(4))") || message.includes("U32(4)") || message.includes("CertificateNotFound")) {
     return {
       code: "CONTRACT_CERTIFICATE_NOT_FOUND",
       title: "Certificate Not Found",
-      description: "The lookup or revocation failed (Contract Revert U32(5)). The requested certificate ID is not registered on the Stellar blockchain.",
-      remedy: "Verify the certificate ID spelling and confirm it was successfully submitted to the ledger.",
+      description: "The lookup or revocation failed (Contract Revert U32(4)). No certificate with that ID exists on this contract.",
+      remedy: "Double-check the certificate ID and confirm it was issued against the currently configured contract address.",
       severity: "medium",
     };
   }
 
-  if (message.includes("Error(Contract, U32(6))") || message.includes("U32(6)") || message.includes("CertificateAlreadyRevoked") || message.includes("Error 105")) {
+  if (message.includes("Error(Contract, U32(5))") || message.includes("U32(5)") || message.includes("AlreadyRevoked")) {
     return {
-      code: "CONTRACT_CERTIFICATE_REVOKED",
+      code: "CONTRACT_ALREADY_REVOKED",
       title: "Certificate Already Revoked",
-      description: "The transaction aborted (Contract Revert U32(6)). This certificate has already been revoked by its issuing institution and cannot be modified further.",
-      remedy: "No action required. Revoked certificates are permanently locked on-chain.",
-      severity: "medium",
+      description: "The transaction aborted (Contract Revert U32(5)). This certificate has already been revoked by its issuing institution.",
+      remedy: "No action required. Revocation is permanent and cannot be applied twice.",
+      severity: "low",
     };
   }
 
-  if (message.includes("Error(Contract, U32(7))") || message.includes("U32(7)") || message.includes("InvalidInput") || message.includes("Error 106")) {
+  if (message.includes("Error(Contract, U32(6))") || message.includes("U32(6)") || message.includes("InvalidInput")) {
     return {
       code: "CONTRACT_INVALID_INPUT",
       title: "Invalid Contract Arguments",
-      description: "The transaction simulation failed (Contract Revert U32(7)). The parameters provided (e.g. empty names, negative fees) violate contract constraints.",
-      remedy: "Review the input fields in the form to ensure they comply with character length and negative value limits.",
+      description: "The transaction simulation failed (Contract Revert U32(6)). The arguments violate a contract constraint — an empty institution name, an empty metadata URI, or a negative fee.",
+      remedy: "Check that every field is filled in and that no fee value is negative, then resubmit.",
       severity: "medium",
     };
   }

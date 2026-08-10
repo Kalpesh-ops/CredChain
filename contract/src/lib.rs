@@ -20,7 +20,6 @@ pub enum DataKey {
 #[derive(Clone)]
 pub struct Institution {
     pub name: String,
-    pub verified: bool,
     pub cert_count: u32,
 }
 
@@ -70,14 +69,22 @@ pub struct CredChain;
 
 #[contractimpl]
 impl CredChain {
+    /// Binds the admin at deploy time. Runs exactly once, as part of the deploy
+    /// operation itself, so the admin seat can never be claimed by an outside caller.
+    pub fn __constructor(env: Env, admin: Address) {
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().extend_ttl(5000, 10000);
+    }
+
     pub fn configure_fees(env: Env, admin: Address, token: Address, treasury: Address, fee: i128) {
         admin.require_auth();
-        if let Some(existing_admin) = env.storage().instance().get::<_, Address>(&DataKey::Admin) {
-            if existing_admin != admin {
-                panic_with_error!(&env, ContractError::NotAuthorized);
-            }
-        } else {
-            env.storage().instance().set(&DataKey::Admin, &admin);
+        let existing_admin = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Admin)
+            .unwrap_or_else(|| panic_with_error!(&env, ContractError::NotAuthorized));
+        if existing_admin != admin {
+            panic_with_error!(&env, ContractError::NotAuthorized);
         }
         if fee < 0 {
             panic_with_error!(&env, ContractError::InvalidInput);
@@ -108,7 +115,6 @@ impl CredChain {
             &DataKey::Institution(addr.clone()),
             &Institution {
                 name,
-                verified: true,
                 cert_count: 0,
             },
         );
