@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWalletStore } from "@/stores/wallet";
 import { useActivityStore } from "@/stores/activity";
 import { useTransactionStore } from "@/stores/transactions";
@@ -11,10 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Cpu,
   Database,
   ExternalLink,
+  Loader2,
   MessageSquare,
   MessageSquareCode,
   ShieldCheck,
@@ -46,7 +49,7 @@ export default function AnalyticsPage() {
   const { transactions } = useTransactionStore();
   const { data: allInstitutions } = useGetAllInstitutions();
 
-  const [feedbacks, setFeedbacks] = useState<FeedbackItem[]>([]);
+  const queryClient = useQueryClient();
   const [newComment, setNewComment] = useState("");
   const [newRating, setNewRating] = useState(5);
   const [newCategory, setNewCategory] = useState("General");
@@ -59,36 +62,28 @@ export default function AnalyticsPage() {
   const [rpcLatency, setRpcLatency] = useState<number | null>(null);
   const [horizonStatus, setHorizonStatus] = useState<"Online" | "Offline" | "Checking">("Checking");
 
-  // Load Feedbacks from Global API Route & Local Storage Fallback
-  useEffect(() => {
-    const fetchGlobalFeedbacks = async () => {
-      try {
-        const res = await fetch("/api/feedback");
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.feedbacks)) {
-            setTimeout(() => {
-              setFeedbacks(data.feedbacks);
-              localStorage.setItem("credchain_feedbacks", JSON.stringify(data.feedbacks));
-            }, 0);
-            return;
-          }
-        }
-      } catch {}
-
-      const saved = localStorage.getItem("credchain_feedbacks");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setTimeout(() => {
-            setFeedbacks(parsed);
-          }, 0);
-        } catch {}
+  // The shared forum is server state, so it goes through TanStack Query like
+  // every other fetch in this app. There is deliberately no localStorage cache:
+  // a per-browser copy of a "global" forum is what made the old version look
+  // like it was working when nothing was ever being persisted.
+  const {
+    data: feedbacks = [],
+    isPending: forumLoading,
+    isError: forumFailed,
+    error: forumFetchError,
+    refetch: reloadForum,
+  } = useQuery<FeedbackItem[], Error>({
+    queryKey: ["feedbacks"],
+    queryFn: async () => {
+      const res = await fetch("/api/feedback");
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(data?.feedbacks)) {
+        throw new Error(data?.error || "The community forum is unavailable.");
       }
-    };
-
-    fetchGlobalFeedbacks();
-  }, []);
+      return data.feedbacks as FeedbackItem[];
+    },
+    retry: 1,
+  });
 
   // Fetch actual RPC and Horizon Latency
   useEffect(() => {
@@ -245,23 +240,20 @@ export default function AnalyticsPage() {
         body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.feedbacks)) {
-          setFeedbacks(data.feedbacks);
-          localStorage.setItem("credchain_feedbacks", JSON.stringify(data.feedbacks));
-          setNewComment("");
-          setNewRating(5);
-          setNewCategory("General");
-          setSubmitState("idle");
-          return;
-        }
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && Array.isArray(data?.feedbacks)) {
+        // Seed the cache with the list the server just read back, so the feed
+        // shows exactly what was persisted rather than an optimistic guess.
+        queryClient.setQueryData(["feedbacks"], data.feedbacks);
+        setNewComment("");
+        setNewRating(5);
+        setNewCategory("General");
+        setSubmitState("idle");
+        return;
       }
 
-      const err = await res.json().catch(() => null);
-      setSubmitNote(
-        err?.error || "Could not submit feedback. Please try again."
-      );
+      setSubmitNote(data?.error || "Could not submit feedback. Please try again.");
       setSubmitState("idle");
     } catch {
       setSubmitNote("Network error — could not reach the server.");
@@ -773,7 +765,30 @@ export default function AnalyticsPage() {
               </div>
             </CardHeader>
             <CardContent>
-              {feedbacks.length === 0 ? (
+              {forumLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 text-zinc-500 dark:text-zinc-400">
+                  <Loader2 className="h-8 w-8 mb-4 animate-spin text-emerald-500" />
+                  <p className="text-xs text-zinc-500">Loading the community forum…</p>
+                </div>
+              ) : forumFailed ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <AlertTriangle className="h-12 w-12 mb-4 opacity-60 text-amber-500" />
+                  <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Forum unavailable
+                  </p>
+                  <p className="text-xs mt-1 text-zinc-500 max-w-sm text-center">
+                    {forumFetchError?.message}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => reloadForum()}
+                    className="mt-4 text-xs"
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : feedbacks.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16 text-zinc-500 dark:text-zinc-400">
                   <MessageSquare className="h-12 w-12 mb-4 opacity-40 text-emerald-500" />
                   <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">No community posts yet</p>

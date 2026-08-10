@@ -81,10 +81,14 @@ Arguments are converted to XDR through the small helpers in `client/src/lib/scva
 
 **Feedback API** (`client/src/app/api/feedback/route.ts`) is the only server-side surface. Attribution is derived from an Ed25519 signature, never from the request body: an unsigned POST is always stored as `Anonymous User` / `Direct Input` regardless of what `address` it claims. The canonical signing payload lives in `client/src/lib/feedback-message.ts` and is imported by both the client and the route so the two representations cannot drift. Albedo, Rabet, and the hardware-wallet modules do not implement SEP-0043 `signMessage` — the client catches that and falls back to anonymous rather than failing.
 
-Persistence tries Postgres via `client/src/lib/db.ts` and falls back to a JSON file + in-memory array when the DB is unreachable (serverless writes fail silently by design). `db.ts` resolves a connection string from a priority chain of env vars (`DATABASE_URL` → `POSTGRES_URL` → … → composed `POSTGRES_*` parts) to accommodate Vercel's Supabase integration, and calls `initDbSchema()` (idempotent `CREATE TABLE IF NOT EXISTS` + RLS policies) before every query.
+Persistence lives entirely in `client/src/lib/feedback-store.ts` — swapping providers means rewriting that one file. It talks to Neon over the HTTP driver (`@neondatabase/serverless`), which issues one fetch per query: no TCP pool to exhaust across invocations, and it wakes a scaled-to-zero compute on demand. The connection string comes from `DATABASE_URL` (or `POSTGRES_URL` / `NEON_DATABASE_URL`); with none set the store reports `unconfigured`.
+
+**A write either persists or reports failure.** There is no in-memory or JSON-file fallback, and `GET` returns 503 rather than an empty 200 when the store is unavailable — an empty 200 renders identically to a genuinely empty forum, which is how the previous implementation hid the fact that nothing was ever being saved. The client surfaces this as a distinct "Forum unavailable" state with a retry, separate from "no posts yet". Do not reintroduce a local fallback that makes a dropped post look successful.
+
+Schema setup is a one-off: `npm run init-db` (`client/scripts/init-db.mjs`). It is deliberately not on the request path.
 
 ## Environment
 
 Copy `client/.env.example` to `client/.env`. `NEXT_PUBLIC_CONTRACT_ADDRESS` is read directly from `process.env` in `wallet.ts`, `contracts.ts`, and `useContractEventsListener.ts` — when redeploying the contract, update `.env`, both workflow files, and the README address together.
 
-Note: `client/src/lib/db.ts` ends its connection-string chain with a hardcoded Supabase URL containing live credentials. Treat that as a leaked secret to rotate and remove, not as a working default to rely on.
+No credentials belong in source. The previous implementation hardcoded a Supabase superuser connection string as a fallback in three committed files; those files are gone, but the credential is still in git history and must be treated as compromised.

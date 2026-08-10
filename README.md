@@ -122,7 +122,34 @@ NEXT_PUBLIC_STELLAR_NETWORK=testnet
 NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
 NEXT_PUBLIC_CONTRACT_ADDRESS=CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
+
+# Optional — enables the community feedback forum. See below.
+DATABASE_URL=postgresql://...
 ```
+
+### Community Feedback Forum (optional)
+
+The forum needs a Postgres database. **Neon** is the expected provider: its compute
+scales to zero when idle and resumes automatically on the next request, so the forum
+still works after long stretches of no traffic. Providers that *pause* a project after
+inactivity (rather than suspending compute) will leave the forum dead until manually
+resumed.
+
+1.  Create a database at [neon.com](https://neon.com), or add Neon from the Vercel
+    Marketplace — which populates `DATABASE_URL` in the project automatically.
+2.  Put the connection string in `client/.env` as `DATABASE_URL`.
+3.  Create the schema once:
+    ```bash
+    cd client && npm run init-db
+    ```
+
+Leave `DATABASE_URL` unset to run without the forum. The API then reports itself as
+unconfigured and the UI says so explicitly — posts are never silently accepted and
+discarded.
+
+Feedback submitted from a connected wallet is signed with that wallet and verified
+server-side before being attributed to an address. Unsigned submissions are published
+anonymously; a claimed address without a valid signature is ignored.
 
 ### Local Development
 
