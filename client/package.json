@@ -41,6 +41,9 @@
     "typescript": "^5",
     "vitest": "^4.1.9"
   },
+  "overrides": {
+    "protobufjs": "^7.6.5"
+  },
   "ignoreScripts": [
     "sharp",
     "unrs-resolver"

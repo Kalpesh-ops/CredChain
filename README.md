@@ -10,9 +10,9 @@ CredChain is a decentralized certificate issuance platform built on the Stellar 
 *   **Deployed Contract Address**: `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`
 *   **Successful Contract Call Tx Hash**: `dfeecec95a11080d9673db9ef1e5e54912fcd81bd85b7f9232ce1c2a4f164d6d` (Stellar Testnet)
 
-> ⚠️ **Redeploy pending.** The address above predates the `__constructor(admin)` change and
-> was deployed with its `Admin` slot unset, leaving it claimable by any caller. Redeploy with
-> `client/scripts/deploy.sh` and update this address, `client/.env`, and
+> ⚠️ **Redeploy pending.** The address above predates the current contract source and does
+> not include the `__constructor(admin)` authorization change. Redeploy with
+> `client/scripts/deploy.sh`, then update this address, `client/.env`, and
 > `.github/workflows/ci.yml` before treating this deployment as current.
 
 ## System Architecture
