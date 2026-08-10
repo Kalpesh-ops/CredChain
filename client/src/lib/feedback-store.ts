@@ -43,19 +43,46 @@ interface FeedbackRow {
 
 const MAX_FEEDBACKS = 200;
 
+/** Exact names checked first, in priority order. */
+const EXACT_URL_VARS = [
+  "DATABASE_URL",
+  "POSTGRES_URL",
+  "NEON_DATABASE_URL",
+] as const;
+
 /**
- * Vercel's Neon integration populates DATABASE_URL; the other names are
- * accepted so an existing project's variables keep working.
+ * Vercel storage integrations can be attached with a custom variable prefix, so
+ * the same Neon database may surface as DATABASE_URL or as
+ * <prefix>_DATABASE_URL. Matching on the suffix means the app works under any
+ * prefix without duplicating the credential into a second variable that would
+ * go stale the moment Neon rotates it.
+ *
+ * The `$` anchors matter: they keep DATABASE_URL_UNPOOLED,
+ * POSTGRES_URL_NON_POOLING and POSTGRES_URL_NO_SSL out, so we always land on
+ * the pooled connection string.
  */
-function connectionString(): string | null {
-  const raw =
-    process.env.DATABASE_URL ||
-    process.env.POSTGRES_URL ||
-    process.env.NEON_DATABASE_URL ||
-    null;
-  if (!raw) return null;
-  const trimmed = raw.trim().replace(/^["']|["']$/g, "");
+const SUFFIX_URL_PATTERNS = [/_DATABASE_URL$/, /_POSTGRES_URL$/];
+
+function clean(value: string | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().replace(/^["']|["']$/g, "");
   return trimmed.length > 0 ? trimmed : null;
+}
+
+export function connectionString(): string | null {
+  for (const name of EXACT_URL_VARS) {
+    const found = clean(process.env[name]);
+    if (found) return found;
+  }
+
+  for (const pattern of SUFFIX_URL_PATTERNS) {
+    // Sort for deterministic selection when several prefixes are present.
+    const key = Object.keys(process.env).filter((k) => pattern.test(k)).sort()[0];
+    const found = clean(process.env[key ?? ""]);
+    if (found) return found;
+  }
+
+  return null;
 }
 
 export function isConfigured(): boolean {
