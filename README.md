@@ -2,11 +2,18 @@
 
 CredChain is a decentralized certificate issuance platform built on the Stellar Soroban smart contract platform. Registered institutions can issue tamper-proof credentials as NFTs, verify them instantly by ID, and maintain a transparent revocation list — all on the Stellar blockchain.
 
+> **Trust model:** institution registration is permissionless. The contract guarantees that a certificate was issued by a specific address and has not been altered or revoked; it does not certify that the address belongs to the organization it claims to be. Verifying that mapping is out of scope for the contract.
+
 ## Live Demo & Deployment Info
 
 *   **Live Demo URL**: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
 *   **Deployed Contract Address**: `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`
 *   **Successful Contract Call Tx Hash**: `dfeecec95a11080d9673db9ef1e5e54912fcd81bd85b7f9232ce1c2a4f164d6d` (Stellar Testnet)
+
+> ⚠️ **Redeploy pending.** The address above predates the current contract source and does
+> not include the `__constructor(admin)` authorization change. Redeploy with
+> `client/scripts/deploy.sh`, then update this address, `client/.env`, and
+> `.github/workflows/ci.yml` before treating this deployment as current.
 
 ## System Architecture
 
@@ -27,7 +34,7 @@ graph TD
 
 ## Features
 
-*   🏛️ **Institution Registration** — Register as a verified institution on-chain.
+*   🏛️ **Institution Registration** — Register an issuing institution on-chain. Registration is open and self-service; the contract records the registering address, it does not vouch for it.
 *   📜 **Certificate Issuance** — Issue tamper-proof credential NFTs to recipients.
 *   ✅ **Instant Verification** — Verify any certificate by ID and check its status.
 *   ❌ **Certificate Revocation** — Revoke certificates with full on-chain transparency.
@@ -115,7 +122,34 @@ NEXT_PUBLIC_STELLAR_NETWORK=testnet
 NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
 NEXT_PUBLIC_CONTRACT_ADDRESS=CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
+
+# Optional — enables the community feedback forum. See below.
+DATABASE_URL=postgresql://...
 ```
+
+### Community Feedback Forum (optional)
+
+The forum needs a Postgres database. **Neon** is the expected provider: its compute
+scales to zero when idle and resumes automatically on the next request, so the forum
+still works after long stretches of no traffic. Providers that *pause* a project after
+inactivity (rather than suspending compute) will leave the forum dead until manually
+resumed.
+
+1.  Create a database at [neon.com](https://neon.com), or add Neon from the Vercel
+    Marketplace — which populates `DATABASE_URL` in the project automatically.
+2.  Put the connection string in `client/.env` as `DATABASE_URL`.
+3.  Create the schema once:
+    ```bash
+    cd client && npm run init-db
+    ```
+
+Leave `DATABASE_URL` unset to run without the forum. The API then reports itself as
+unconfigured and the UI says so explicitly — posts are never silently accepted and
+discarded.
+
+Feedback submitted from a connected wallet is signed with that wallet and verified
+server-side before being attributed to an address. Unsigned submissions are published
+anonymously; a claimed address without a valid signature is ignored.
 
 ### Local Development
 
@@ -155,14 +189,16 @@ stellar contract deploy \
 ## Testing
 
 ### Smart Contract Tests
-Run unit tests for the smart contract (including mock token fee inter-contract calls):
+Run unit tests for the smart contract (including mock token fee inter-contract calls
+and the admin-authorization regression tests):
 ```bash
 cd contract
 cargo test
 ```
 
 ### Frontend Tests
-Run unit tests for the client-side XDR helper utilities:
+Run unit tests for the XDR helpers, stores, contract error decoder, and the feedback
+signing payload:
 ```bash
 cd client
 npm run test
@@ -171,16 +207,27 @@ npm run test
 ---
 
 ## CI/CD Pipeline & GitHub Actions
-This project features a GitHub Actions workflow configured in `.github/workflows/ci.yml`. On every push and pull request to the `main` branch, the workflow:
+
+**CI** — `.github/workflows/ci.yml`, on every push and pull request to `main`:
 1. Sets up the Rust toolchain and installs components (`rustfmt`, `clippy`).
 2. Checks Rust contract formatting (`cargo fmt --check`).
 3. Runs Rust static code analysis and linting (`cargo clippy -- -D warnings`).
-4. Runs all 18 contract unit tests (`cargo test`).
-5. Builds the contract WASM target (`wasm32v1-none`).
-6. Installs frontend Node dependencies.
+4. Runs all 21 contract unit tests (`cargo test`).
+5. Builds the contract WASM target (`wasm32v1-none`) and asserts it stays under Soroban's 64 KB limit.
+6. Installs frontend Node dependencies and audits them (`npm audit --audit-level=critical`).
 7. Runs frontend code linting and style checks (`npm run lint`).
-8. Runs all 24 frontend unit tests (`npm run test`).
+8. Runs all 54 frontend unit tests (`npm run test`).
 9. Performs Next.js production compilation to verify build soundness.
+
+**CD** — `.github/workflows/cd.yml`:
+*   **Frontend** deploys to Vercel on every push to `main`.
+*   **Contract** deploys only via manual `workflow_dispatch` with the `deploy_contract`
+    input checked. A deploy mints a new contract address and starts from empty state,
+    so it is deliberately not tied to commits. After deploying, update
+    `NEXT_PUBLIC_CONTRACT_ADDRESS` in the Vercel project env, `client/.env`,
+    `.github/workflows/ci.yml`, and this README — nothing propagates it automatically.
+
+Neither workflow swallows command failures.
 
 ---
 
@@ -217,7 +264,7 @@ The automated GitHub Actions workflow executes building, linting, formatting, an
 ![CI/CD Pipeline](./static/ci-cd-pipeline.png)
 
 ### 7. Automated Test Output
-All 18 smart contract tests and 24 frontend store/utility tests pass successfully.
+All 21 smart contract tests and 54 frontend tests pass successfully.
 
 ![Test Output](./static/test-output.png)
 
@@ -231,7 +278,10 @@ The custom monitoring interface showcases live-updating RPC Node logs, Horizon A
 ![Analytics & Monitoring](./static/analytics-monitoring.png)
 
 ### 9. Onboarded Users & Feedback Summary
-The platform displays proof of 11 unique onboarded user wallet addresses with transaction histories, as well as a collection of 10 verified user feedback items.
+The analytics page aggregates wallet interactions observed by the contract event
+listener alongside the community feedback feed. Feedback submitted from a connected
+wallet is signed with that wallet and verified server-side before it is attributed to
+an address; unsigned submissions are published anonymously.
 
 ![Feedback Summary](./static/feedback-summary.png)
 
@@ -260,8 +310,8 @@ The platform displays proof of 11 unique onboarded user wallet addresses with tr
 ✅ **Public GitHub Repository** — Pushed and accessible on GitHub.
 ✅ **README Complete** — Fully detailed documentation with Mermaid architecture diagram, screenshots, and Level 4 criteria.
 ✅ **Live Demo** — Deployed and running on Vercel: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
-✅ **Demo Video Link** — [CredChain Level 4 Presentation Video (1-2 mins)](https://www.loom.com/share/placeholder_credchain_level4)
+⬜ **Demo Video Link** — _Not yet recorded._ Replace this line with the video URL once it exists.
 ✅ **Monitoring & Analytics Integration** — Tracks RPC node latencies, Horizon network status, and contract telemetry logs.
-✅ **10+ Onboarded Users** — Interactive proof of 10+ user wallet interactions on the Stellar Testnet ledger.
-✅ **Basic User Feedback Collection** — Interactive feedback form with ratings distribution metrics and verified user comments feed.
+⬜ **10+ Onboarded Users** — _Pending._ Update this line with the interaction count actually present on-chain for the deployed contract.
+✅ **Basic User Feedback Collection** — Interactive feedback form with ratings distribution, plus wallet-signed attribution verified server-side.
 

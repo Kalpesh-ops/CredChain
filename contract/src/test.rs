@@ -9,7 +9,7 @@ use soroban_sdk::{testutils::Address as _, testutils::Events, Env, Event, String
 fn test_register_institution() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let addr = Address::generate(&env);
@@ -17,7 +17,6 @@ fn test_register_institution() {
 
     let inst = client.get_institution(&addr).unwrap();
     assert_eq!(inst.name, String::from_str(&env, "Test University"));
-    assert!(inst.verified);
     assert_eq!(inst.cert_count, 0);
     assert!(client.is_institution(&addr));
 }
@@ -26,7 +25,7 @@ fn test_register_institution() {
 fn test_register_institution_already_registered() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let addr = Address::generate(&env);
@@ -40,7 +39,7 @@ fn test_register_institution_already_registered() {
 fn test_issue_certificate() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -73,7 +72,7 @@ fn test_issue_certificate() {
 fn test_issue_certificate_not_registered() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -91,7 +90,7 @@ fn test_issue_certificate_not_registered() {
 fn test_revoke_certificate() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -115,7 +114,7 @@ fn test_revoke_certificate() {
 fn test_revoke_certificate_not_authorized() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -139,7 +138,7 @@ fn test_revoke_certificate_not_authorized() {
 fn test_revoke_certificate_already_revoked() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -160,7 +159,7 @@ fn test_revoke_certificate_already_revoked() {
 fn test_get_certificate_not_found() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let cert = client.get_certificate(&999);
@@ -171,7 +170,7 @@ fn test_get_certificate_not_found() {
 fn test_verify_certificate_not_found() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     assert!(!client.verify_certificate(&999));
@@ -181,7 +180,7 @@ fn test_verify_certificate_not_found() {
 fn test_is_institution() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let addr = Address::generate(&env);
@@ -195,7 +194,7 @@ fn test_is_institution() {
 fn test_get_all_institutions() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let insts = client.get_all_institutions();
@@ -214,7 +213,7 @@ fn test_get_all_institutions() {
 fn test_multiple_certificates() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -245,7 +244,7 @@ fn test_multiple_certificates() {
 fn test_events_emitted() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let addr = Address::generate(&env);
@@ -261,7 +260,7 @@ fn test_events_emitted() {
 fn test_full_lifecycle() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -288,7 +287,7 @@ fn test_full_lifecycle() {
 fn test_revoke_not_found() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let caller = Address::generate(&env);
@@ -301,7 +300,8 @@ fn test_configure_fees_and_registration_fee_transfer() {
     let env = Env::default();
     env.mock_all_auths();
 
-    let contract_id = env.register(CredChain, ());
+    let admin = Address::generate(&env);
+    let contract_id = env.register(CredChain, (admin.clone(),));
     let client = CredChainClient::new(&env, &contract_id);
 
     // Register the Stellar Asset Token contract
@@ -311,7 +311,6 @@ fn test_configure_fees_and_registration_fee_transfer() {
     let token_admin_client =
         soroban_sdk::token::StellarAssetClient::new(&env, &token_contract_id.address());
 
-    let admin = Address::generate(&env);
     let treasury = Address::generate(&env);
     let institution = Address::generate(&env);
     let fee: i128 = 10_000_000; // 1 XLM / 10M stroops
@@ -339,7 +338,7 @@ fn test_configure_fees_and_registration_fee_transfer() {
 fn test_register_institution_empty_name() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let addr = Address::generate(&env);
@@ -351,7 +350,7 @@ fn test_register_institution_empty_name() {
 fn test_issue_certificate_empty_metadata() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let contract_id = env.register(CredChain, (Address::generate(&env),));
     let client = CredChainClient::new(&env, &contract_id);
 
     let issuer = Address::generate(&env);
@@ -366,10 +365,10 @@ fn test_issue_certificate_empty_metadata() {
 fn test_configure_fees_negative() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let admin = Address::generate(&env);
+    let contract_id = env.register(CredChain, (admin.clone(),));
     let client = CredChainClient::new(&env, &contract_id);
 
-    let admin = Address::generate(&env);
     let token = Address::generate(&env);
     let treasury = Address::generate(&env);
 
@@ -377,23 +376,48 @@ fn test_configure_fees_negative() {
     assert!(result.is_err());
 }
 
+/// Regression test for the admin-takeover bug: `configure_fees` used to claim the
+/// admin seat for whoever called it first. The admin is now bound by the constructor,
+/// so an unrelated caller must be rejected.
+#[test]
+fn test_configure_fees_rejects_non_admin() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let contract_id = env.register(CredChain, (admin.clone(),));
+    let client = CredChainClient::new(&env, &contract_id);
+
+    let attacker = Address::generate(&env);
+    let attacker_token = Address::generate(&env);
+    let attacker_treasury = Address::generate(&env);
+
+    let result =
+        client.try_configure_fees(&attacker, &attacker_token, &attacker_treasury, &10_000_000);
+    assert!(result.is_err());
+
+    // The legitimate admin is unaffected and can still configure.
+    client.configure_fees(&admin, &attacker_token, &attacker_treasury, &100);
+}
+
 #[test]
 fn test_transfer_admin() {
     let env = Env::default();
     env.mock_all_auths();
-    let contract_id = env.register(CredChain, ());
+    let admin1 = Address::generate(&env);
+    let contract_id = env.register(CredChain, (admin1.clone(),));
     let client = CredChainClient::new(&env, &contract_id);
 
-    let admin1 = Address::generate(&env);
     let admin2 = Address::generate(&env);
     let token = Address::generate(&env);
     let treasury = Address::generate(&env);
 
-    // 1. Trying to transfer admin before configure_fees should fail
-    let res = client.try_transfer_admin(&admin1, &admin2);
+    // 1. A non-admin cannot rotate the admin seat
+    let outsider = Address::generate(&env);
+    let res = client.try_transfer_admin(&outsider, &admin2);
     assert!(res.is_err());
 
-    // 2. Configure fees (sets admin1)
+    // 2. The constructor-bound admin can configure fees
     client.configure_fees(&admin1, &token, &treasury, &100);
 
     // 3. Rotate admin to admin2

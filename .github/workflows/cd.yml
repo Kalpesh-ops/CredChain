@@ -1,12 +1,23 @@
 name: CD Deployment Pipeline
 
+# The frontend is deployed by Vercel's own GitHub integration on every push to
+# main — this workflow deliberately does not deploy it. A CLI deploy here would
+# produce a second, duplicate production deployment per push.
+#
+# Contract deployment is manual: a deploy mints a brand-new contract address and
+# orphans all prior on-chain state, so it must not ride on every commit.
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_contract:
+        description: "Deploy a NEW contract instance (new address, empty state)"
+        type: boolean
+        default: false
 
 jobs:
   deploy-smart-contract:
     name: Deploy Smart Contract to Stellar Testnet
+    if: inputs.deploy_contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -17,37 +28,24 @@ jobs:
         with:
           target: wasm32v1-none
 
+      # deploy.sh drives the `stellar` CLI end to end (build, deploy, bindings).
+      # Without this step every stellar invocation in the script is "command not found".
+      - name: Install Stellar CLI
+        run: cargo install --locked stellar-cli
+
+      # SOURCE_ACCOUNT names a key in the runner's local keystore. deploy.sh
+      # generates and funds it on testnet when absent, and binds it as the
+      # contract admin via the constructor.
       - name: Run Contract Deployment Script (deploy.sh)
         run: |
           chmod +x client/scripts/deploy.sh
-          bash client/scripts/deploy.sh || echo "Smart contract deployed / Active on Testnet: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO"
+          bash client/scripts/deploy.sh
         env:
           NETWORK: testnet
           RPC_URL: https://soroban-testnet.stellar.org
           NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+          SOURCE_ACCOUNT: dev
 
-  deploy-frontend:
-    name: Deploy Frontend to Vercel
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: client/package-lock.json
-
-      - name: Install Dependencies
-        run: npm install
-        working-directory: client
-
-      - name: Deploy Frontend to Vercel Production
+      - name: Remind to propagate the new address
         run: |
-          npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes || echo "Frontend deployment complete / Live on Vercel"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          echo "::warning::A new contract was deployed. Update NEXT_PUBLIC_CONTRACT_ADDRESS in the Vercel project env, client/.env, .github/workflows/ci.yml, and README.md — nothing does this automatically."

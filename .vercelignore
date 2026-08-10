@@ -1,0 +1,17 @@
+# Vercel builds from the `client` root directory and installs dependencies
+# itself, so none of this needs uploading. Without these exclusions a CLI deploy
+# from the repo root tries to upload node_modules and the Rust target dir and
+# aborts.
+
+node_modules
+.next
+out
+build
+
+# Rust smart contract — deployed to Stellar, not to Vercel.
+contract
+
+# README screenshots.
+static
+
+.git

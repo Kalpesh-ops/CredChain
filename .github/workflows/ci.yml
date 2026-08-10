@@ -72,7 +72,7 @@ jobs:
         working-directory: client
 
       - name: Audit NPM Dependencies
-        run: npm audit --audit-level=critical || true
+        run: npm audit --audit-level=critical
         working-directory: client
 
       - name: Run Linter
@@ -90,46 +90,7 @@ jobs:
           NEXT_PUBLIC_STELLAR_NETWORK: testnet
           NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
           NEXT_PUBLIC_STELLAR_RPC_URL: https://soroban-testnet.stellar.org
+          # Build-time value only, used to verify the bundle compiles. The address
+          # the deployed app actually uses comes from the Vercel project env vars.
+          # Keep in sync with client/.env when the contract is redeployed.
           NEXT_PUBLIC_CONTRACT_ADDRESS: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
-
-  deploy-contract-and-frontend:
-    name: CD Deployment (Smart Contract & Frontend)
-    needs: [rust-contract, nextjs-frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: client/package-lock.json
-
-      - name: Install Node Dependencies
-        run: npm install
-        working-directory: client
-
-      - name: Install Rust Toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          target: wasm32v1-none
-
-      - name: Execute Smart Contract Deployment Script
-        run: |
-          chmod +x client/scripts/deploy.sh
-          bash client/scripts/deploy.sh || echo "Smart contract deployed / Active on Testnet: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO"
-        env:
-          NETWORK: testnet
-          RPC_URL: https://soroban-testnet.stellar.org
-          NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
-
-      - name: Deploy Frontend to Vercel Production
-        run: |
-          npx vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes || echo "Frontend deployment complete / Live on Vercel"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
