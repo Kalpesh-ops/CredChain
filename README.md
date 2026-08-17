@@ -7,13 +7,12 @@ CredChain is a decentralized certificate issuance platform built on the Stellar 
 ## Live Demo & Deployment Info
 
 *   **Live Demo URL**: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
-*   **Deployed Contract Address**: `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`
-*   **Successful Contract Call Tx Hash**: `dfeecec95a11080d9673db9ef1e5e54912fcd81bd85b7f9232ce1c2a4f164d6d` (Stellar Testnet)
+*   **Deployed Contract Address**: `CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK`
+*   **Contract Admin**: `GDLQBRN3FUDPD2U24Z7GQF7VRM5DW3CV2Y4WVPQLOV7WLX536F6ZPKIA` — bound at deploy time by `__constructor(admin)`
 
-> ⚠️ **Redeploy pending.** The address above predates the current contract source and does
-> not include the `__constructor(admin)` authorization change. Redeploy with
-> `client/scripts/deploy.sh`, then update this address, `client/.env`, and
-> `.github/workflows/ci.yml` before treating this deployment as current.
+The admin is set as part of the deploy operation itself and can only be changed by the
+current admin via `transfer_admin`. `configure_fees` rejects every other caller with
+`NotAuthorized`.
 
 ## System Architecture
 
@@ -121,7 +120,7 @@ cp .env.example .env
 NEXT_PUBLIC_STELLAR_NETWORK=testnet
 NEXT_PUBLIC_STELLAR_NETWORK_PASSPHRASE="Test SDF Network ; September 2015"
 NEXT_PUBLIC_STELLAR_RPC_URL=https://soroban-testnet.stellar.org
-NEXT_PUBLIC_CONTRACT_ADDRESS=CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
+NEXT_PUBLIC_CONTRACT_ADDRESS=CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK
 
 # Optional — enables the community feedback forum. See below.
 DATABASE_URL=postgresql://...
@@ -177,11 +176,22 @@ cd contract
 # Build the contract target
 stellar contract build
 
-# Deploy to Testnet
+# Deploy to Testnet.
+# The trailing `-- --admin` passes the constructor argument. Without it the deploy
+# fails: the contract has no unauthenticated path to set an admin afterwards.
 stellar contract deploy \
   --wasm target/wasm32v1-none/release/credchain.wasm \
   --source dev \
-  --network testnet
+  --network testnet \
+  -- \
+  --admin <YOUR_G_ADDRESS>
+```
+
+Or use the script, which builds, deploys, binds the admin and regenerates the
+TypeScript bindings in one pass:
+
+```bash
+ADMIN_ADDRESS=<YOUR_G_ADDRESS> bash client/scripts/deploy.sh
 ```
 
 ---
@@ -303,7 +313,7 @@ an address; unsigned submissions are published anonymously.
 ✅ **Balance Display** — Fetches and displays actual XLM balance from Horizon.
 ✅ **Testnet Transaction** — Send XLM on Testnet directly in the dApp.
 ✅ **Error Handling** — Robust handlers for wallet-not-installed, user-rejections, and insufficient-balances.
-✅ **Smart Contract Deployed** — Deployed at `CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO`.
+✅ **Smart Contract Deployed** — Deployed at `CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK`.
 ✅ **Contract Read & Write** — Fully integrated read (institution registration checks, certificate verification) and write (issue certificate, register institution, revoke certificate) interactions.
 ✅ **Event Listener & Real-Time Sync Indicator** — Real-time event polling, query cache invalidation, and live sync status badge in the Navbar.
 ✅ **15+ Meaningful Commits** — Organized Git history reflecting iterative development.

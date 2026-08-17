@@ -93,4 +93,4 @@ jobs:
           # Build-time value only, used to verify the bundle compiles. The address
           # the deployed app actually uses comes from the Vercel project env vars.
           # Keep in sync with client/.env when the contract is redeployed.
-          NEXT_PUBLIC_CONTRACT_ADDRESS: CBZ5KPEROYIQ2YDDACVIXUMWUIZAVND5A4N6W4LSQOH7YOF7ADO6GAHO
+          NEXT_PUBLIC_CONTRACT_ADDRESS: CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK

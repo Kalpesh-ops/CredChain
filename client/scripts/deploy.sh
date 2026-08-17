@@ -30,8 +30,19 @@ if ! stellar keys address "$SOURCE_ACCOUNT" >/dev/null 2>&1; then
   echo "Key '$SOURCE_ACCOUNT' not found, generating and funding it..."
   stellar keys generate "$SOURCE_ACCOUNT" --network "$NETWORK" --fund
 fi
-ADMIN_ADDRESS=$(stellar keys address "$SOURCE_ACCOUNT")
-echo "Account ready. Admin will be bound to: $ADMIN_ADDRESS"
+# The admin does not have to be the deploying key. Set ADMIN_ADDRESS to bind a
+# wallet you control in the browser (Freighter etc.), so configure_fees and
+# transfer_admin can be called without the CLI keystore. Defaults to the deployer.
+ADMIN_ADDRESS="${ADMIN_ADDRESS:-$(stellar keys address "$SOURCE_ACCOUNT")}"
+
+if ! printf '%s' "$ADMIN_ADDRESS" | grep -Eq '^G[A-Z2-7]{55}$'; then
+  echo "ERROR: ADMIN_ADDRESS is not a valid Stellar public key: $ADMIN_ADDRESS" >&2
+  exit 1
+fi
+
+echo "Account ready."
+echo "Deployer: $(stellar keys address "$SOURCE_ACCOUNT")"
+echo "Admin will be bound to: $ADMIN_ADDRESS"
 
 # 2. Build the contract
 echo "[2/4] Building contract..."
