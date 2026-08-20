@@ -62,11 +62,12 @@ export function useGetCertificate(certId: number | null) {
       if (!result) return null;
       const cert = result as Record<string, unknown>;
       return {
-        id: (cert.id as number) ?? 0,
+        // u64 fields arrive from scValToNative as BigInt, not number.
+        id: Number(cert.id ?? 0),
         issuer: cert.issuer as string,
         recipient: cert.recipient as string,
         metadata_uri: cert.metadata_uri as string,
-        issued_at: (cert.issued_at as number) ?? 0,
+        issued_at: Number(cert.issued_at ?? 0),
         revoked: (cert.revoked as boolean) ?? false,
       };
     },
