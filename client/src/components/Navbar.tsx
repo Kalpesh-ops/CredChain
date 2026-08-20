@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Activity, Home, ShieldCheck, Menu, X, BarChart3 } from "lucide-react";
+import { Wallet, Activity, Home, ShieldCheck, Menu, X, BarChart3, BadgeCheck } from "lucide-react";
 import { useState } from "react";
 import { cn, truncateAddress } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ const navLinks = [
   { href: "/", label: "Home", icon: Home },
   { href: "/dashboard", label: "Dashboard", icon: Wallet },
   { href: "/app", label: "App", icon: ShieldCheck },
+  { href: "/verify", label: "Verify", icon: BadgeCheck },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
@@ -28,7 +29,7 @@ export function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-700 dark:bg-zinc-950/80">
+      <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white/80 backdrop-blur-md print:hidden dark:border-zinc-700 dark:bg-zinc-950/80">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link
             href="/"

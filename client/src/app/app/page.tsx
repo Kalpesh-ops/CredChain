@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Web3ErrorAlert } from "@/components/Web3ErrorAlert";
+import { encodeCredential } from "@/lib/credential";
 
 export default function AppPage() {
   const { isConnected, address } = useWalletStore();
@@ -26,7 +27,8 @@ export default function AppPage() {
 
   const [instName, setInstName] = useState("");
   const [recipient, setRecipient] = useState("");
-  const [metadataUri, setMetadataUri] = useState("");
+  const [holder, setHolder] = useState("");
+  const [title, setTitle] = useState("");
   const [revokeCertId, setRevokeCertId] = useState("");
 
   const registerMutation = useRegisterInstitution();
@@ -133,23 +135,28 @@ export default function AppPage() {
                   onChange={(e) => setRecipient(e.target.value)}
                 />
                 <Input
-                  placeholder="Metadata URI (e.g., ipfs://Qm...)"
-                  value={metadataUri}
-                  onChange={(e) => setMetadataUri(e.target.value)}
+                  placeholder="Recipient name (e.g., Ada Lovelace)"
+                  value={holder}
+                  onChange={(e) => setHolder(e.target.value)}
+                />
+                <Input
+                  placeholder="Credential title (e.g., BSc Computer Science)"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                 />
                 <Button
                   className="w-full"
                   onClick={() => {
-                    if (address && recipient && metadataUri) {
+                    if (address && recipient && holder && title) {
                       issueMutation.mutate({
                         issuer: address,
                         recipient,
-                        metadataUri,
+                        metadataUri: encodeCredential({ holder, title }),
                       });
                     }
                   }}
                   disabled={
-                    issueMutation.isPending || !recipient || !metadataUri
+                    issueMutation.isPending || !recipient || !holder || !title
                   }
                 >
                   {issueMutation.isPending ? (
