@@ -21,9 +21,9 @@ describe("useActivityStore", () => {
     expect(useActivityStore.getState().events).toEqual([event]);
   });
 
-  it("limits events list to 100 items", () => {
+  it("caps the events list and keeps the newest", () => {
     const state = useActivityStore.getState();
-    for (let i = 0; i < 105; i++) {
+    for (let i = 0; i < 505; i++) {
       state.addEvent({
         type: "certificate_issued" as const,
         timestamp: i,
@@ -31,8 +31,65 @@ describe("useActivityStore", () => {
         data: { id: i, issuer: "iss", recipient: "rec" },
       });
     }
-    expect(useActivityStore.getState().events.length).toBe(100);
-    expect(useActivityStore.getState().events[0].timestamp).toBe(104);
+    expect(useActivityStore.getState().events.length).toBe(500);
+    expect(useActivityStore.getState().events[0].timestamp).toBe(504);
+  });
+
+  it("ignores an event already in the feed", () => {
+    const event = {
+      type: "certificate_issued" as const,
+      timestamp: 10,
+      txHash: "dupe",
+      data: { id: 7, issuer: "iss", recipient: "rec" },
+    };
+    const state = useActivityStore.getState();
+    state.addEvent(event);
+    state.addEvent({ ...event });
+    expect(useActivityStore.getState().events).toHaveLength(1);
+  });
+
+  it("merges backfilled events newest first without duplicating live ones", () => {
+    const state = useActivityStore.getState();
+    state.addEvent({
+      type: "certificate_issued" as const,
+      timestamp: 300,
+      txHash: "live",
+      data: { id: 3, issuer: "iss", recipient: "rec" },
+    });
+    state.mergeEvents([
+      {
+        type: "certificate_issued" as const,
+        timestamp: 100,
+        txHash: "old",
+        data: { id: 1, issuer: "iss", recipient: "rec" },
+      },
+      {
+        type: "certificate_issued" as const,
+        timestamp: 300,
+        txHash: "live",
+        data: { id: 3, issuer: "iss", recipient: "rec" },
+      },
+    ]);
+    const events = useActivityStore.getState().events;
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.timestamp)).toEqual([300, 100]);
+  });
+
+  it("treats different certificates in one transaction as separate events", () => {
+    const state = useActivityStore.getState();
+    state.addEvent({
+      type: "certificate_issued" as const,
+      timestamp: 5,
+      txHash: "batch",
+      data: { id: 1, issuer: "iss", recipient: "rec" },
+    });
+    state.addEvent({
+      type: "certificate_issued" as const,
+      timestamp: 5,
+      txHash: "batch",
+      data: { id: 2, issuer: "iss", recipient: "rec" },
+    });
+    expect(useActivityStore.getState().events).toHaveLength(2);
   });
 
   it("clears events", () => {

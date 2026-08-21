@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { rpc, xdr, scValToNative } from "@stellar/stellar-sdk";
 import { useWalletStore } from "@/stores/wallet";
 import { useActivityStore } from "@/stores/activity";
+import { fetchContractEventHistory } from "@/lib/activity-history";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
@@ -11,6 +12,8 @@ export function useContractEventsListener() {
   const rpcUrl = useWalletStore((s) => s.rpcUrl);
   const addEvent = useActivityStore((s) => s.addEvent);
   const setSyncStatus = useActivityStore((s) => s.setSyncStatus);
+  const mergeEvents = useActivityStore((s) => s.mergeEvents);
+  const setHistoryStatus = useActivityStore((s) => s.setHistoryStatus);
   const setLastSyncedAt = useActivityStore((s) => s.setLastSyncedAt);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -36,8 +39,20 @@ export function useContractEventsListener() {
       try {
         setSyncStatus("syncing");
         if (!lastLedgerRef.current) {
-          // Initialize with latest ledger sequence
+          // Backfill everything the node still retains before watching forward,
+          // otherwise the feed is empty until the next on-chain action.
           const latest = await server.getLatestLedger();
+          setHistoryStatus("loading");
+          try {
+            const history = await fetchContractEventHistory(
+              rpcUrl,
+              contractAddress
+            );
+            mergeEvents(history);
+            setHistoryStatus("ready");
+          } catch {
+            setHistoryStatus("error");
+          }
           lastLedgerRef.current = Math.max(0, latest.sequence - 10); // check last 10 ledgers initially to avoid missing quick actions
           setSyncStatus("connected");
           setLastSyncedAt(Math.floor(Date.now() / 1000));
@@ -191,5 +206,5 @@ export function useContractEventsListener() {
       activeRef.current = false;
       clearInterval(interval);
     };
-  }, [rpcUrl, addEvent, queryClient, toast, setSyncStatus, setLastSyncedAt]);
+  }, [rpcUrl, addEvent, mergeEvents, queryClient, toast, setSyncStatus, setHistoryStatus, setLastSyncedAt]);
 }

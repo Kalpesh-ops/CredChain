@@ -6,6 +6,7 @@ import {
   Building2,
   ExternalLink,
   Activity,
+  Loader2,
 } from "lucide-react";
 import { useActivityStore } from "@/stores/activity";
 import { Badge } from "@/components/ui/badge";
@@ -13,22 +14,34 @@ import { Button } from "@/components/ui/button";
 import { formatTimestamp, getExplorerUrl, truncateAddress } from "@/lib/utils";
 
 export function ActivityFeed() {
-  const { events } = useActivityStore();
+  const { events, historyStatus } = useActivityStore();
 
   if (events.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-zinc-500 dark:text-zinc-400">
-        <Activity className="h-12 w-12 mb-4 opacity-50" />
-        <p className="text-sm font-medium">No activity yet</p>
-        <p className="text-xs mt-1">
-          Events from contract interactions will appear here
-        </p>
+        {historyStatus === "loading" ? (
+          <>
+            <Loader2 className="h-12 w-12 mb-4 animate-spin opacity-50" />
+            <p className="text-sm font-medium">Reading the ledger…</p>
+            <p className="text-xs mt-1">Loading past contract events</p>
+          </>
+        ) : (
+          <>
+            <Activity className="h-12 w-12 mb-4 opacity-50" />
+            <p className="text-sm font-medium">No activity yet</p>
+            <p className="text-xs mt-1">
+              {historyStatus === "error"
+                ? "Could not reach the RPC node for history"
+                : "Events from contract interactions will appear here"}
+            </p>
+          </>
+        )}
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 max-h-[500px] overflow-y-auto">
       {events.map((event, idx) => {
         const iconMap: Record<string, React.ReactNode> = {
           institution_registered: (
