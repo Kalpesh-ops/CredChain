@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Wallet, Activity, Home, ShieldCheck, Menu, X, BarChart3, BadgeCheck } from "lucide-react";
+import { Wallet, Activity, Home, ShieldCheck, Menu, X, BarChart3, BadgeCheck, Award } from "lucide-react";
 import { useState } from "react";
 import { cn, truncateAddress } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ const navLinks = [
   { href: "/dashboard", label: "Dashboard", icon: Wallet },
   { href: "/app", label: "App", icon: ShieldCheck },
   { href: "/verify", label: "Verify", icon: BadgeCheck },
+  { href: "/credentials", label: "Credentials", icon: Award },
   { href: "/activity", label: "Activity", icon: Activity },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];

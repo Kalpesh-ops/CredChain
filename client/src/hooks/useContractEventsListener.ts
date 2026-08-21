@@ -103,6 +103,7 @@ export function useContractEventsListener() {
                   data: { id, issuer, recipient },
                 });
                 queryClient.invalidateQueries({ queryKey: ["certificate"] });
+                queryClient.invalidateQueries({ queryKey: ["allCertificates"] });
                 queryClient.invalidateQueries({ queryKey: ["verifyCertificate"] });
                 queryClient.invalidateQueries({ queryKey: ["institution"] });
                 toast({
@@ -119,6 +120,7 @@ export function useContractEventsListener() {
                   data: { id, caller },
                 });
                 queryClient.invalidateQueries({ queryKey: ["certificate"] });
+                queryClient.invalidateQueries({ queryKey: ["allCertificates"] });
                 queryClient.invalidateQueries({ queryKey: ["verifyCertificate"] });
                 toast({
                   variant: "destructive",

@@ -10,6 +10,23 @@ import {
 } from "@/lib/scval";
 import type { Institution, Certificate } from "@/types";
 
+/** Certificates are fetched one simulation at a time, so cap the fan-out. */
+const CERTIFICATE_CHUNK = 8;
+
+function toCertificate(result: unknown): Certificate | null {
+  if (!result) return null;
+  const cert = result as Record<string, unknown>;
+  return {
+    // u64 fields arrive from scValToNative as BigInt, not number.
+    id: Number(cert.id ?? 0),
+    issuer: cert.issuer as string,
+    recipient: cert.recipient as string,
+    metadata_uri: cert.metadata_uri as string,
+    issued_at: Number(cert.issued_at ?? 0),
+    revoked: (cert.revoked as boolean) ?? false,
+  };
+}
+
 // Read hooks
 
 export function useIsInstitution(address: string | null) {
@@ -59,17 +76,7 @@ export function useGetCertificate(certId: number | null) {
       const result = await readContract("get_certificate", [
         toScValU64(certId),
       ]);
-      if (!result) return null;
-      const cert = result as Record<string, unknown>;
-      return {
-        // u64 fields arrive from scValToNative as BigInt, not number.
-        id: Number(cert.id ?? 0),
-        issuer: cert.issuer as string,
-        recipient: cert.recipient as string,
-        metadata_uri: cert.metadata_uri as string,
-        issued_at: Number(cert.issued_at ?? 0),
-        revoked: (cert.revoked as boolean) ?? false,
-      };
+      return toCertificate(result);
     },
     enabled: certId !== null,
   });
@@ -101,6 +108,60 @@ export function useGetAllInstitutions() {
       if (!result) return [];
       const vec = result as unknown[];
       return vec.map((v) => String(v));
+    },
+  });
+}
+
+export interface CertificateRegistry {
+  certificates: Certificate[];
+  /** Issuer address to institution name, for rendering issuers by name. */
+  issuerNames: Record<string, string>;
+  /** Total ever issued, revoked ones included. */
+  total: number;
+}
+
+export function useAllCertificates() {
+  const readContract = useWalletStore((s) => s.readContract);
+
+  return useQuery({
+    queryKey: ["allCertificates"],
+    queryFn: async (): Promise<CertificateRegistry> => {
+      const result = await readContract("get_all_institutions", []);
+      const addresses = result ? (result as unknown[]).map((v) => String(v)) : [];
+
+      const records = await Promise.all(
+        addresses.map((addr) =>
+          readContract("get_institution", [toScValAddress(addr)])
+        )
+      );
+
+      const issuerNames: Record<string, string> = {};
+      let total = 0;
+      records.forEach((record, i) => {
+        const inst = record as Record<string, unknown> | null;
+        if (!inst) return;
+        issuerNames[addresses[i]] = inst.name as string;
+        // Issuing bumps exactly one institution's cert_count and revoking never
+        // decrements it, so the sum is the highest certificate id in existence.
+        total += Number(inst.cert_count ?? 0);
+      });
+
+      const certificates: Certificate[] = [];
+      for (let start = 1; start <= total; start += CERTIFICATE_CHUNK) {
+        const ids = Array.from(
+          { length: Math.min(CERTIFICATE_CHUNK, total - start + 1) },
+          (_, i) => start + i
+        );
+        const chunk = await Promise.all(
+          ids.map((id) => readContract("get_certificate", [toScValU64(id)]))
+        );
+        for (const entry of chunk) {
+          const cert = toCertificate(entry);
+          if (cert) certificates.push(cert);
+        }
+      }
+
+      return { certificates, issuerNames, total };
     },
   });
 }
@@ -193,6 +254,7 @@ export function useIssueCertificate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certificate"] });
+      queryClient.invalidateQueries({ queryKey: ["allCertificates"] });
       queryClient.invalidateQueries({ queryKey: ["institution"] });
     },
     onError: (error: Error) => {
@@ -240,6 +302,7 @@ export function useRevokeCertificate() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["certificate"] });
+      queryClient.invalidateQueries({ queryKey: ["allCertificates"] });
       queryClient.invalidateQueries({ queryKey: ["verifyCertificate"] });
     },
     onError: (error: Error) => {
