@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Building2,
   Award,
@@ -43,6 +44,13 @@ export default function AppPage() {
           <h2 className="text-xl font-semibold">Connect Your Wallet</h2>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
             Connect your Stellar wallet to issue and manage certificates
+          </p>
+          <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+            New here?{" "}
+            <Link href="/start" className="font-medium text-blue-600 underline dark:text-blue-400">
+              Start with the guided walkthrough
+            </Link>
+            .
           </p>
         </div>
       </div>

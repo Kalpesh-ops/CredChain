@@ -54,14 +54,14 @@ export default function HomePage() {
           </div>
 
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-            <Link href="/app">
+            <Link href="/start">
               <Button size="lg" className="gap-2">
-                Launch App <ArrowRight className="h-4 w-4" />
+                Issue your first credential <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/dashboard">
+            <Link href="/verify">
               <Button variant="outline" size="lg">
-                View Dashboard
+                Verify a credential
               </Button>
             </Link>
           </div>
