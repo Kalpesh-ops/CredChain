@@ -111,7 +111,7 @@ export default function ArchitectureDocsPage() {
               The smart contract is written in Rust using the official <code>soroban-sdk</code>. It implements explicit state isolation and persistent storage extensions:
             </p>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li><strong>Storage TTL Extension</strong>: Soroban ledger entries require state TTL management. Every read/write operation automatically invokes <code>env.storage().persistent().extend_ttl()</code> to ensure certificates do not get archived over time.</li>
+              <li><strong>Storage TTL Extension</strong>: Soroban ledger entries are archived if left untouched. Every write invokes <code>extend_ttl(5000, 10000)</code> on the entry it touched, so active records stay live.</li>
               <li><strong>Checks-Effects-Interactions Pattern</strong>: Contract methods perform input validation and signature authentication before mutating storage or emitting events.</li>
               <li><strong>Checked Arithmetic</strong>: Protects against integer overflows and underflows during sequence or total count updates.</li>
               <li><strong>Admin Authority Transfer</strong>: Includes <code>transfer_admin</code> to allow smooth governance handovers without locking out institutions.</li>
@@ -132,10 +132,74 @@ export default function ArchitectureDocsPage() {
               Web3 transactions often fail with cryptic XDR codes. CredChain integrates a centralized error decoder (<code>error-decoder.ts</code>):
             </p>
             <ul className="list-disc pl-5 space-y-1.5">
-              <li>Translates Soroban revert codes (U32 100–106) and Stellar Horizon errors into human-readable titles, codes, and remedies.</li>
+              <li>Translates Soroban revert codes (<code>1</code>=NotRegistered through <code>6</code>=InvalidInput) and Stellar Horizon errors into human-readable titles, codes, and remedies. The mapping is pinned by unit tests against the contract enum so the two cannot drift.</li>
               <li>Expands transaction validity windows to 300 seconds to prevent <code>tx_too_late</code> expirations when users sign via hardware or extension wallets.</li>
               <li>Provides global React Error Boundaries (<code>error.tsx</code>) and component-level diagnostic alerts (<code>Web3ErrorAlert.tsx</code>).</li>
             </ul>
+          </CardContent>
+        </Card>
+
+        {/* Section 3: Credential metadata */}
+        <Card className="border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              <span>3. Self-Contained Credential Metadata</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+            <p>
+              The contract stores only <code>id</code>, <code>issuer</code>, <code>recipient</code>,
+              <code> metadata_uri</code>, <code>issued_at</code>, and <code>revoked</code>. Human-readable
+              detail lives inside <code>metadata_uri</code> as a base64 data URI:
+            </p>
+            <div className="rounded-lg bg-zinc-950 p-4 font-mono text-[11px] text-zinc-300 overflow-x-auto border border-zinc-800">
+              <div className="text-emerald-400">data:application/json;base64,...</div>
+              <div className="pt-1">{'{ "holder": "Ada Lovelace", "title": "BSc Computer Science" }'}</div>
+            </div>
+            <p>
+              Verification therefore performs no external fetch — the whole credential is on
+              the ledger. An HTTPS or IPFS pointer would instead make every verifier trust a
+              host that could change or lose the content.
+            </p>
+            <p>
+              The issuer&apos;s name is deliberately absent from the payload. It is read from
+              <code> get_institution(issuer)</code> on-chain, so whoever wrote the metadata cannot
+              forge it. Credentials carrying a plain-string URI still verify; the page falls
+              back to displaying the raw value.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Section 4: Derived reads */}
+        <Card className="border-zinc-200 dark:border-zinc-800">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5 text-emerald-500" />
+              <span>4. Derived Reads: Registry &amp; Activity History</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+            <p>
+              The contract exposes no certificate list and no total counter, and adding one
+              would require a redeploy — which mints a new address and abandons all existing
+              state. The registry derives both instead, from two invariants:
+            </p>
+            <ul className="list-disc pl-5 space-y-1.5">
+              <li>Certificate ids are sequential from 1, since <code>NextCertId</code> only ever increments and nothing deletes.</li>
+              <li><code>revoke_certificate</code> flips a flag but never decrements <code>cert_count</code>.</li>
+            </ul>
+            <p>
+              Together those make the sum of every institution&apos;s <code>cert_count</code> exactly the
+              highest id in existence, so the registry can fetch ids <code>1..total</code> with no
+              probing. Reads are chunked to bound RPC fan-out.
+            </p>
+            <p>
+              The activity feed backfills the full RPC retention window on load, paging by
+              cursor from the floor that <code>getHealth</code> reports. Because RPC retains roughly
+              seven days of events, older account history is read from Horizon, which keeps
+              far more.
+            </p>
           </CardContent>
         </Card>
       </div>

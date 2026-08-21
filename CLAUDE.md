@@ -10,7 +10,7 @@ Two independent projects in one repo, no shared build system:
 - `client/` — Next.js 16 (App Router) + React 19 + TypeScript frontend
 - `static/` — README screenshots only
 
-`client/CLAUDE.md` imports `client/AGENTS.md`, which warns that this Next.js version differs from training data — consult `client/node_modules/next/dist/docs/` before writing Next-specific code.
+`client/CLAUDE.md` warns that this Next.js version differs from training data — consult `client/node_modules/next/dist/docs/` before writing Next-specific code. Confirmed case: page `params` is a Promise (`use(params)` in client components).
 
 ## Commands
 
@@ -25,7 +25,7 @@ cd contract && stellar contract build        # or: cargo build --target wasm32v1
 
 ```bash
 cd client && npm run dev                     # dev server on :3000
-cd client && npm run test                    # vitest run (54 tests)
+cd client && npm run test                    # vitest run (92 tests)
 cd client && npx vitest run src/lib/scval.test.ts   # single test file
 cd client && npm run lint && npm run build   # what CI enforces
 ```
@@ -77,6 +77,16 @@ Balance comes from Horizon REST (`horizon-testnet.stellar.org/accounts/:addr`), 
 
 **Real-time sync** is polling, not websockets: `useContractEventsListener` (mounted once in `Providers`) calls `getEvents` every 4s from the last seen ledger, dispatches to the activity store, fires toasts, and invalidates the same query keys. It handles two RPC failure modes explicitly — indexer lag (requested ledger > indexed max: wait, stay "connected") and pruning (requested < retention min: reset `lastLedgerRef` to re-init from latest). Don't collapse those branches into a generic error path.
 
+**Credential metadata rides inside `metadata_uri`.** The contract stores no holder name or credential title, and cannot be extended without a redeploy that abandons all state. `client/src/lib/credential.ts` encodes `{holder, title}` as a `data:application/json;base64,` URI so verification needs no server. The issuer name is deliberately not in the payload — it is read from `get_institution(issuer)` so it cannot be forged. Plain-string URIs from older certificates must keep rendering via the raw-value fallback.
+
+**`useAllCertificates` derives the certificate list the contract does not expose.** Ids are sequential from 1 and `revoke_certificate` never decrements `cert_count`, so the sum of every institution's count is the highest id in existence. Reads are chunked to bound RPC fan-out. If either invariant changes in `lib.rs`, this derivation breaks silently.
+
+**u64 fields arrive from `scValToNative` as BigInt, not number.** `toCertificate` in `client/src/hooks/contract.ts` converts `id` and `issued_at` at the boundary. Arithmetic on an unconverted value throws `Cannot mix BigInt and other types`.
+
+**Wallet sessions persist by user choice** (`client/src/lib/wallet-session.ts`): session-only via `sessionStorage`, or 1/7/30 days via `localStorage` with an explicit expiry. Only the public address and wallet id are stored — never key material. `restoreSession` must re-run `StellarWalletsKit.init()` and `setWallet()`, because `signAndSendTransaction` calls the kit without initialising it and would otherwise fail after a reload.
+
+**The activity feed backfills before it watches.** `fetchContractEventHistory` pages by cursor from the retention floor reported by `getHealth`; each page scans exactly 10,000 ledgers. Backfill and the live poller overlap deliberately, so the activity store dedupes on `txHash:type:id` — the id is part of the key so two certificates issued in one transaction stay distinct. RPC retains ~7 days of events; older account history comes from Horizon.
+
 Arguments are converted to XDR through the small helpers in `client/src/lib/scval.ts` (`toScValAddress`, `toScValU64`, `toScValString`, …) — always go through these rather than calling `nativeToScVal` inline, since the typed variants are what the tests cover.
 
 **Feedback API** (`client/src/app/api/feedback/route.ts`) is the only server-side surface. Attribution is derived from an Ed25519 signature, never from the request body: an unsigned POST is always stored as `Anonymous User` / `Direct Input` regardless of what `address` it claims. The canonical signing payload lives in `client/src/lib/feedback-message.ts` and is imported by both the client and the route so the two representations cannot drift. Albedo, Rabet, and the hardware-wallet modules do not implement SEP-0043 `signMessage` — the client catches that and falls back to anonymous rather than failing.
@@ -86,6 +96,12 @@ Persistence lives entirely in `client/src/lib/feedback-store.ts` — swapping pr
 **A write either persists or reports failure.** There is no in-memory or JSON-file fallback, and `GET` returns 503 rather than an empty 200 when the store is unavailable — an empty 200 renders identically to a genuinely empty forum, which is how the previous implementation hid the fact that nothing was ever being saved. The client surfaces this as a distinct "Forum unavailable" state with a retry, separate from "no posts yet". Do not reintroduce a local fallback that makes a dropped post look successful.
 
 Schema setup is a one-off: `npm run init-db` (`client/scripts/init-db.mjs`). It is deliberately not on the request path.
+
+### Routes
+
+`/` landing · `/start` guided onboarding · `/app` issue/register/revoke · `/verify` and `/verify/[id]` public verification with QR and print · `/credentials` public registry · `/dashboard` · `/activity` · `/analytics` · `/docs/*` · `/api/feedback`.
+
+Public pages must keep working without a wallet — `readContract` falls back to a random keypair as the simulation source.
 
 ## Environment
 

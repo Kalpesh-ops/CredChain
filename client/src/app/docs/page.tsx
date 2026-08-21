@@ -28,7 +28,7 @@ export default function DocsOverviewPage() {
               <Cpu className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
               <CardTitle className="text-lg">System Architecture</CardTitle>
               <CardDescription className="text-xs">
-                Deep dive into Soroban WASM smart contracts, storage TTL management, and 4-tier database redundancy.
+                Soroban WASM contract layout, storage and TTL management, on-chain credential metadata, and the read/write data paths.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
@@ -44,7 +44,7 @@ export default function DocsOverviewPage() {
               <UserCheck className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
               <CardTitle className="text-lg">Issuer & User Guide</CardTitle>
               <CardDescription className="text-xs">
-                Step-by-step instructions for wallet setup, registering institutions, issuing diplomas, and verifying credentials.
+                Wallet setup, funding, registering an issuer, issuing a credential, and verifying one by QR or id.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
@@ -60,7 +60,7 @@ export default function DocsOverviewPage() {
               <Lock className="h-6 w-6 text-emerald-500 mb-2 group-hover:scale-110 transition-transform" />
               <CardTitle className="text-lg">Security & Audit</CardTitle>
               <CardDescription className="text-xs">
-                Row Level Security (RLS) policies, checks-effects-interactions contract patterns, and error diagnostics.
+                Admin authority, signature-derived attribution, checks-effects-interactions contract patterns, and error diagnostics.
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0 text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 group-hover:translate-x-1 transition-transform">
@@ -85,7 +85,7 @@ export default function DocsOverviewPage() {
               <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div>
                 <strong className="block text-zinc-900 dark:text-zinc-100">Frictionless Public Verification</strong>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Recruiters and employers can verify any certificate ID instantly without needing a wallet, account registration, or subscription fee.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Scan the QR on a credential or open /verify/&lt;id&gt;. No wallet, no account, no subscription — the page reads straight from the ledger.</p>
               </div>
             </div>
 
@@ -100,8 +100,8 @@ export default function DocsOverviewPage() {
             <div className="flex items-start space-x-3">
               <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div>
-                <strong className="block text-zinc-900 dark:text-zinc-100">Storage TTL Persistence Guarantee</strong>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Smart contract functions automatically execute <code>extend_ttl</code> on persistent ledger entries so certificates remain permanently accessible.</p>
+                <strong className="block text-zinc-900 dark:text-zinc-100">Self-Contained On-Chain Credentials</strong>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Holder name and title are encoded into the credential itself as a data URI, so verification reads the whole record from the ledger with no server to trust. Writes extend persistent-entry TTL to keep records live.</p>
               </div>
             </div>
 
@@ -109,7 +109,7 @@ export default function DocsOverviewPage() {
               <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
               <div>
                 <strong className="block text-zinc-900 dark:text-zinc-100">Decentralized Multi-Wallet Support</strong>
-                <p className="text-xs text-zinc-500 dark:text-zinc-400">Supports Freighter, Albedo, xBull, LOBSTR, and Rabet wallets via Creit Tech Wallet Kit integration.</p>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">Supports Freighter, Albedo, and xBull via the Creit Tech Stellar Wallets Kit, with opt-in session persistence.</p>
               </div>
             </div>
           </div>

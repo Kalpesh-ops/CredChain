@@ -1,26 +1,37 @@
 # CredChain — Blockchain-Verified Credentials
 
-CredChain is a decentralized certificate issuance platform built on the Stellar Soroban smart contract platform. Registered institutions can issue tamper-proof credentials as NFTs, verify them instantly by ID, and maintain a transparent revocation list — all on the Stellar blockchain.
+CredChain is a decentralized credential platform built on Stellar Soroban. Registered
+institutions issue tamper-proof credentials on-chain, anyone can verify one from a
+public page or a QR code without a wallet, and revocation is transparent and immediate.
 
-> **Trust model:** institution registration is permissionless. The contract guarantees that a certificate was issued by a specific address and has not been altered or revoked; it does not certify that the address belongs to the organization it claims to be. Verifying that mapping is out of scope for the contract.
+> **Trust model:** institution registration is permissionless. The contract guarantees
+> that a credential was issued by a specific address and has not been altered or
+> revoked; it does not certify that the address belongs to the organization it claims
+> to be. Verifying that mapping is out of scope for the contract.
 
-## Live Demo & Deployment Info
+## Live demo & deployment
 
-*   **Live Demo URL**: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
-*   **Deployed Contract Address**: `CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK`
-*   **Contract Admin**: `GDLQBRN3FUDPD2U24Z7GQF7VRM5DW3CV2Y4WVPQLOV7WLX536F6ZPKIA` — bound at deploy time by `__constructor(admin)`
+| | |
+|---|---|
+| **Live app** | [credchain-stellar.vercel.app](https://credchain-stellar.vercel.app) |
+| **Try it in 3 minutes** | [/start](https://credchain-stellar.vercel.app/start) — guided walkthrough |
+| **Public registry** | [/credentials](https://credchain-stellar.vercel.app/credentials) — every credential ever issued |
+| **Contract** | `CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK` |
+| **Contract admin** | `GDLQBRN3FUDPD2U24Z7GQF7VRM5DW3CV2Y4WVPQLOV7WLX536F6ZPKIA` |
+| **Network** | Stellar Testnet |
 
-The admin is set as part of the deploy operation itself and can only be changed by the
-current admin via `transfer_admin`. `configure_fees` rejects every other caller with
-`NotAuthorized`.
+The admin is bound at deploy time by `__constructor(admin)` and can only be changed by
+the current admin via `transfer_admin`. `configure_fees` rejects every other caller
+with `NotAuthorized`.
 
-## System Architecture
+## System architecture
 
 ```mermaid
 graph TD
     Client[Next.js Client] -->|Reads / Writes| RPC[Soroban RPC Server]
-    Client -->|XLM Transfers| Horizon[Stellar Horizon API]
+    Client -->|Balances & account history| Horizon[Stellar Horizon API]
     Client -->|Connects & Signs| SWK[Stellar Wallets Kit]
+    Client -->|Feedback forum| Neon[(Neon Postgres)]
     SWK -->|Integrates| Freighter[Freighter Wallet]
     SWK -->|Integrates| xBull[xBull Wallet]
     SWK -->|Integrates| Albedo[Albedo Wallet]
@@ -33,83 +44,155 @@ graph TD
 
 ## Features
 
-*   🏛️ **Institution Registration** — Register an issuing institution on-chain. Registration is open and self-service; the contract records the registering address, it does not vouch for it.
-*   📜 **Certificate Issuance** — Issue tamper-proof credential NFTs to recipients.
-*   ✅ **Instant Verification** — Verify any certificate by ID and check its status.
-*   ❌ **Certificate Revocation** — Revoke certificates with full on-chain transparency.
-*   💸 **Send XLM** — Transfer XLM directly on the Stellar Testnet.
-*   🔄 **Real-Time Event Listening** — Automatic UI updates and toast notifications using RPC contract event polling.
-*   🌙 **Dark Mode** — Sleek dark/light theme toggle.
-*   🔌 **Multi-Wallet Support** — Integrated via Stellar Wallets Kit (Freighter, xBull, Albedo).
+### Issuing
+
+* **Institution registration** — register an issuing organization on-chain. Open and
+  self-service; the contract records the registering address, it does not vouch for it.
+* **Credential issuance** — issue a credential to any Stellar address, carrying the
+  holder's name and the credential title.
+* **Revocation** — revoke a credential you issued, with the change visible on-chain
+  immediately.
+
+### Verifying
+
+* **Public verification page** — `/verify/<id>` renders a credential as a certificate,
+  with a valid/revoked banner. **No wallet required**; everything is read from the
+  ledger.
+* **QR codes** — every credential page carries a QR pointing back at itself, so a phone
+  camera is a sufficient verification tool.
+* **Print / Save as PDF** — a print stylesheet strips the site chrome so the credential
+  prints cleanly.
+* **Credential registry** — `/credentials` lists every credential ever issued, with
+  totals, live status, and a filter across ids, holders, titles, and issuers.
+
+### Onboarding
+
+* **Guided walkthrough** — `/start` takes a newcomer from no wallet to a verified
+  credential in five steps that unlock from live chain state.
+* **In-app testnet funding** — a Friendbot button covers transaction fees without
+  leaving the page.
+* **Network mismatch detection** — the app compares the wallet's network against its
+  own and says so, rather than failing at signing time.
+* **Wallet session persistence** — stay signed in for this browser session, 1, 7, or 30
+  days. Only the public address is stored; signing always goes through the wallet.
+
+### Platform
+
+* **Real-time event sync** — RPC event polling drives toasts, cache invalidation, and a
+  live sync badge.
+* **Full activity history** — the feed backfills the whole RPC retention window on load
+  and pulls account history from Horizon.
+* **Community feedback forum** — wallet-signed attribution, verified server-side.
+* **Multi-wallet** — Freighter, xBull, and Albedo via Stellar Wallets Kit.
+* **Dark mode**, mobile-responsive throughout.
 
 ---
 
-## Tech Stack
+## How credential metadata works
 
-*   **Smart Contract**: Rust + Soroban SDK
-*   **Frontend**: Next.js 15 + TypeScript
-*   **Styling**: Tailwind CSS + shadcn/ui
-*   **State**: Zustand + TanStack Query
-*   **Blockchain**: Stellar Soroban + `@stellar/stellar-sdk`
-*   **Wallet Integration**: `@creit.tech/stellar-wallets-kit`
+The contract stores only `id`, `issuer`, `recipient`, `metadata_uri`, `issued_at`, and
+`revoked`. Holder names and credential titles live **inside `metadata_uri`**, encoded as
+a self-contained data URI:
+
+```
+data:application/json;base64,eyJob2xkZXIiOiJBZGEgTG92ZWxhY2UiLC...
+```
+
+which decodes to:
+
+```json
+{ "holder": "Ada Lovelace", "title": "BSc Computer Science" }
+```
+
+Verification therefore needs **no server and no external fetch** — the entire credential
+is on the ledger. The alternative, an HTTPS or IPFS pointer, would make every verifier
+trust a host that could change or lose the content.
+
+The issuer's name is deliberately *not* in the payload. It is read from
+`get_institution(issuer)` on-chain, so whoever wrote the metadata cannot forge it.
+
+Credentials whose `metadata_uri` is a plain string (issued before this encoding, or by
+another client) still verify correctly — the page falls back to showing the raw URI.
+The codec lives in [`client/src/lib/credential.ts`](client/src/lib/credential.ts).
 
 ---
 
-## Folder Structure
+## Tech stack
+
+| Layer | Choice |
+|---|---|
+| Smart contract | Rust + Soroban SDK 25, `#![no_std]` |
+| Frontend | Next.js 16 (App Router) + React 19 + TypeScript |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| State | Zustand + TanStack Query |
+| Chain access | `@stellar/stellar-sdk` (Soroban RPC + Horizon) |
+| Wallets | `@creit.tech/stellar-wallets-kit` |
+| QR | `qrcode` |
+| Forum storage | Neon Postgres over the HTTP driver |
+| Tests | `cargo test` (21) + Vitest (92) |
+
+---
+
+## Folder structure
 
 ```
 credchain/
-├── contract/                     # Soroban smart contract
-│   ├── Cargo.toml
+├── contract/                          # Soroban smart contract
 │   ├── src/
-│   │   ├── lib.rs            # Contract implementation
-│   │   └── test.rs           # Contract tests
-│   └── Makefile              # Build rules
-├── client/                       # Next.js frontend
+│   │   ├── lib.rs                     # Entire contract implementation
+│   │   └── test.rs                    # Contract tests
+│   ├── test_snapshots/                # Golden files backing the tests
+│   └── Makefile
+├── client/                            # Next.js frontend
 │   ├── src/
-│   │   ├── app/                  # Pages
-│   │   │   ├── page.tsx          # Landing page
-│   │   │   ├── dashboard/        # Wallet, Send XLM & institution overview
-│   │   │   ├── app/              # Main application (Issuance & Revocation)
-│   │   │   └── activity/         # Event feed & transactions history
-│   │   ├── components/           # UI components
-│   │   │   ├── ui/               # UI primitives
+│   │   ├── app/
+│   │   │   ├── page.tsx               # Landing page
+│   │   │   ├── start/                 # Guided onboarding walkthrough
+│   │   │   ├── app/                   # Issue / register / revoke
+│   │   │   ├── verify/                # Public lookup + /verify/[id] certificate page
+│   │   │   ├── credentials/           # Public registry of every credential
+│   │   │   ├── dashboard/             # Wallet, Send XLM, institution overview
+│   │   │   ├── activity/              # Event feed + account history
+│   │   │   ├── analytics/             # Telemetry and feedback forum
+│   │   │   ├── docs/                  # In-app documentation portal
+│   │   │   └── api/feedback/          # Only server-side surface
+│   │   ├── components/
+│   │   │   ├── ui/                    # UI primitives
 │   │   │   ├── Navbar.tsx
 │   │   │   ├── WalletModal.tsx
+│   │   │   ├── NetworkBanner.tsx      # Wrong-network warning
+│   │   │   ├── RememberWalletPrompt.tsx
 │   │   │   ├── ActivityFeed.tsx
 │   │   │   └── TransactionTracker.tsx
-│   │   ├── hooks/                # Custom hooks
-│   │   │   ├── contract.ts       # TanStack Query contract read/write hooks
-│   │   │   ├── useContractEventsListener.ts # Real-time Soroban RPC event poller
-│   │   │   └── use-toast.ts
-│   │   ├── stores/               # Zustand stores
-│   │   │   ├── wallet.ts         # Wallet state & transaction actions
-│   │   │   ├── transactions.ts   # UI transaction tracking
-│   │   │   └── activity.ts       # Activity events
-│   │   ├── lib/                  # Utilities
-│   │   │   ├── utils.ts
-│   │   │   ├── contracts.ts      # Network config
-│   │   │   └── scval.ts          # ScVal converters
-│   │   └── types/                # TypeScript types
-│   ├── .env.example              # Env template
-│   └── scripts/deploy.sh         # Deployment script
+│   │   ├── hooks/
+│   │   │   ├── contract.ts            # TanStack Query contract read/write hooks
+│   │   │   └── useContractEventsListener.ts
+│   │   ├── stores/                    # Zustand: wallet, transactions, activity
+│   │   ├── lib/
+│   │   │   ├── credential.ts          # On-chain metadata codec
+│   │   │   ├── wallet-session.ts      # Session persistence + expiry
+│   │   │   ├── activity-history.ts    # Event backfill + Horizon history
+│   │   │   ├── error-decoder.ts       # ContractError -> human message
+│   │   │   ├── contracts.ts           # Network config
+│   │   │   └── scval.ts               # ScVal converters
+│   │   └── types/
+│   ├── scripts/deploy.sh
+│   └── .env.example
 └── README.md
 ```
 
 ---
 
-## Setup & Run Instructions
+## Setup & run
 
 ### Prerequisites
 
-*   [Rust](https://rustup.rs/) (stable)
-*   [Node.js](https://nodejs.org/) 18+
-*   [Stellar CLI](https://developers.stellar.org/docs/tools/cli) (installed and on PATH)
-*   Freighter, xBull, or Albedo browser extension wallet
+* [Rust](https://rustup.rs/) (stable)
+* [Node.js](https://nodejs.org/) 18+
+* [Stellar CLI](https://developers.stellar.org/docs/tools/cli) on PATH
+* Freighter, xBull, or Albedo browser extension
 
-### Environment Variables
-
-Copy `client/.env.example` to `client/.env` and update the variables:
+### Environment variables
 
 ```bash
 cd client
@@ -126,57 +209,44 @@ NEXT_PUBLIC_CONTRACT_ADDRESS=CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2
 DATABASE_URL=postgresql://...
 ```
 
-### Community Feedback Forum (optional)
+### Local development
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Open `http://localhost:3000`.
+
+### Community feedback forum (optional)
 
 The forum needs a Postgres database. **Neon** is the expected provider: its compute
 scales to zero when idle and resumes automatically on the next request, so the forum
 still works after long stretches of no traffic. Providers that *pause* a project after
-inactivity (rather than suspending compute) will leave the forum dead until manually
-resumed.
+inactivity will leave the forum dead until manually resumed.
 
-1.  Create a database at [neon.com](https://neon.com), or add Neon from the Vercel
-    Marketplace — which populates `DATABASE_URL` in the project automatically.
-2.  Put the connection string in `client/.env` as `DATABASE_URL`.
-3.  Create the schema once:
-    ```bash
-    cd client && npm run init-db
-    ```
+1. Create a database at [neon.com](https://neon.com), or add Neon from the Vercel
+   Marketplace — which populates `DATABASE_URL` automatically.
+2. Put the connection string in `client/.env` as `DATABASE_URL`.
+3. Create the schema once: `cd client && npm run init-db`
 
-Leave `DATABASE_URL` unset to run without the forum. The API then reports itself as
+Leave `DATABASE_URL` unset to run without the forum. The API reports itself as
 unconfigured and the UI says so explicitly — posts are never silently accepted and
 discarded.
 
-Feedback submitted from a connected wallet is signed with that wallet and verified
-server-side before being attributed to an address. Unsigned submissions are published
-anonymously; a claimed address without a valid signature is ignored.
-
-### Local Development
-
-1.  **Install dependencies**:
-    ```bash
-    cd client
-    npm install
-    ```
-2.  **Start the development server**:
-    ```bash
-    npm run dev
-    ```
-3.  Open `http://localhost:3000` in your browser.
+Feedback from a connected wallet is signed and verified server-side before being
+attributed. Unsigned submissions publish anonymously; a claimed address without a valid
+signature is ignored.
 
 ---
 
-## Smart Contract Build & Deployment
-
-If you want to compile and deploy the contract yourself:
+## Smart contract build & deployment
 
 ```bash
-# Navigate to contract directory
 cd contract
-
-# Build the contract target
 stellar contract build
 
-# Deploy to Testnet.
 # The trailing `-- --admin` passes the constructor argument. Without it the deploy
 # fails: the contract has no unauthenticated path to set an admin afterwards.
 stellar contract deploy \
@@ -187,141 +257,191 @@ stellar contract deploy \
   --admin <YOUR_G_ADDRESS>
 ```
 
-Or use the script, which builds, deploys, binds the admin and regenerates the
+Or use the script, which builds, deploys, binds the admin, and regenerates the
 TypeScript bindings in one pass:
 
 ```bash
 ADMIN_ADDRESS=<YOUR_G_ADDRESS> bash client/scripts/deploy.sh
 ```
 
+**A deploy mints a new contract address with empty state — there is no upgrade path.**
+The new address must then be propagated by hand to `client/.env`, the Vercel project
+env, `.github/workflows/ci.yml`, and this README.
+
+### Contract interface
+
+| Function | Auth | Purpose |
+|---|---|---|
+| `__constructor(admin)` | — | Binds the admin at deploy time |
+| `register_institution(addr, name)` | `addr` | Self-service issuer registration |
+| `issue_certificate(issuer, recipient, metadata_uri)` | `issuer` | Returns the new certificate id |
+| `revoke_certificate(caller, cert_id)` | `caller` = issuer | Marks a credential revoked |
+| `configure_fees(admin, token, treasury, fee)` | `admin` | Optional registration fee |
+| `transfer_admin(current, new)` | `current` | Hands over the admin seat |
+| `get_certificate(cert_id)` | — | Read a credential |
+| `get_institution(addr)` | — | Read an issuer and its count |
+| `verify_certificate(cert_id)` | — | `true` unless missing or revoked |
+| `is_institution(addr)` | — | Registration check |
+| `get_all_institutions()` | — | Every registered issuer |
+
+Error codes: `1=NotRegistered, 2=AlreadyRegistered, 3=NotAuthorized,
+4=CertificateNotFound, 5=AlreadyRevoked, 6=InvalidInput`. Mirrored in
+[`client/src/lib/error-decoder.ts`](client/src/lib/error-decoder.ts).
+
 ---
 
 ## Testing
 
-### Smart Contract Tests
-Run unit tests for the smart contract (including mock token fee inter-contract calls
-and the admin-authorization regression tests):
 ```bash
-cd contract
-cargo test
+cd contract && cargo test      # 21 contract tests
+cd client && npm run test      # 92 frontend tests
 ```
 
-### Frontend Tests
-Run unit tests for the XDR helpers, stores, contract error decoder, and the feedback
-signing payload:
-```bash
-cd client
-npm run test
-```
+Frontend tests cover the XDR helpers, Zustand stores, the contract error decoder, the
+feedback signing payload, the credential metadata codec, and wallet session expiry.
 
 ---
 
-## CI/CD Pipeline & GitHub Actions
+## CI/CD pipeline
 
 **CI** — `.github/workflows/ci.yml`, on every push and pull request to `main`:
-1. Sets up the Rust toolchain and installs components (`rustfmt`, `clippy`).
-2. Checks Rust contract formatting (`cargo fmt --check`).
-3. Runs Rust static code analysis and linting (`cargo clippy -- -D warnings`).
-4. Runs all 21 contract unit tests (`cargo test`).
-5. Builds the contract WASM target (`wasm32v1-none`) and asserts it stays under Soroban's 64 KB limit.
-6. Installs frontend Node dependencies and audits them (`npm audit --audit-level=critical`).
-7. Runs frontend code linting and style checks (`npm run lint`).
-8. Runs all 54 frontend unit tests (`npm run test`).
-9. Performs Next.js production compilation to verify build soundness.
+
+1. Sets up the Rust toolchain (`rustfmt`, `clippy`).
+2. Checks contract formatting (`cargo fmt --check`).
+3. Runs static analysis (`cargo clippy -- -D warnings`).
+4. Runs all 21 contract unit tests.
+5. Builds the WASM target and asserts it stays under Soroban's 64 KB limit.
+6. Installs frontend dependencies and audits them (`npm audit --audit-level=critical`).
+7. Runs frontend linting.
+8. Runs all frontend unit tests.
+9. Performs a Next.js production build.
 
 **CD** — `.github/workflows/cd.yml`:
-*   **Frontend** deploys to Vercel on every push to `main`.
-*   **Contract** deploys only via manual `workflow_dispatch` with the `deploy_contract`
-    input checked. A deploy mints a new contract address and starts from empty state,
-    so it is deliberately not tied to commits. After deploying, update
-    `NEXT_PUBLIC_CONTRACT_ADDRESS` in the Vercel project env, `client/.env`,
-    `.github/workflows/ci.yml`, and this README — nothing propagates it automatically.
+
+* **Frontend** deploys to Vercel on every push to `main`.
+* **Contract** deploys only via manual `workflow_dispatch`. A deploy mints a new address
+  and starts from empty state, so it is deliberately not tied to commits.
 
 Neither workflow swallows command failures.
 
 ---
 
-## Working States & Screenshots
+## Working states & screenshots
 
-### 1. Wallet Connected State
-The application supports connecting to multiple Stellar wallets (Freighter, xBull, Albedo). Once connected, the user's wallet address and status are displayed in the dashboard.
+### 1. Wallet connected
+Connect Freighter, xBull, or Albedo. The address and status appear in the dashboard.
 
 ![Wallet Connected](./static/connected-wallet.png)
 
-### 2. Balance Displayed
-The wallet balance (retrieved directly from the Stellar Horizon network) is displayed dynamically in the Wallet Status card.
+### 2. Balance displayed
+The XLM balance is fetched directly from Horizon.
 
 ![Balance Displayed](./static/balance-display.png)
 
-### 3. Successful Testnet Transaction
-Users can send XLM transfers directly on the Stellar Testnet. When a transaction is submitted, the transaction is signed using the connected wallet and broadcasted to the network.
+### 3. Testnet transaction
+Transfers are signed with the connected wallet and broadcast to the network.
 
 ![Successful Testnet Transaction](./static/transaction-success.png)
 
-### 4. Transaction Result Displayed
-The real-time status of the transaction (pending, success, or failure) is shown to the user with detailed feedback and a direct link to view it on the Stellar Explorer.
+### 4. Transaction result
+Pending, success, and failure states are surfaced with a link to the Stellar Explorer.
 
 ![Transaction Result](./static/transaction-result.png)
 
-### 5. Mobile Responsive UI
-The frontend has been verified on mobile, tablet, and desktop viewports to ensure clean layouts and smooth wallet interactions.
+### 5. Mobile responsive
+Verified on mobile, tablet, and desktop viewports.
 
 ![Mobile Responsive UI](./static/mobile-ui.png)
 
-### 6. CI/CD Workflow Pipeline
-The automated GitHub Actions workflow executes building, linting, formatting, and unit testing on every push and pull request.
+### 6. CI/CD pipeline
+GitHub Actions builds, lints, formats, and tests on every push and pull request.
 
 ![CI/CD Pipeline](./static/ci-cd-pipeline.png)
 
-### 7. Automated Test Output
-All 21 smart contract tests and 54 frontend tests pass successfully.
+### 7. Automated test output
+All contract and frontend tests pass.
 
 ![Test Output](./static/test-output.png)
 
 ---
 
-## Level 4 Upgrades & Working States
+## Roadmap
 
-### 8. Analytics & Monitoring Setup
-The custom monitoring interface showcases live-updating RPC Node logs, Horizon API Rest endpoints health status, and system latency.
-
-![Analytics & Monitoring](./static/analytics-monitoring.png)
-
-### 9. Onboarded Users & Feedback Summary
-The analytics page aggregates wallet interactions observed by the contract event
-listener alongside the community feedback feed. Feedback submitted from a connected
-wallet is signed with that wallet and verified server-side before it is attributed to
-an address; unsigned submissions are published anonymously.
-
-![Feedback Summary](./static/feedback-summary.png)
+1. **IPFS metadata pinning** — offer content-addressed storage as an alternative to the
+   inline data URI for payloads too large to sit on-chain.
+2. **Batch issuance** — issue to many recipients in a single transaction.
+3. **CSV recipient import** — upload a recipient list and issue in bulk.
+4. **Multi-signature revocation** — require more than one authorizer to revoke.
+5. **Issuer verification** — an attestation layer mapping addresses to real
+   organizations, closing the gap the trust model calls out above.
 
 ---
 
-## Future Improvements
+## Level 5 submission checklist
 
-1.  **IPFS Metadata Pinning**: Automatically pin certificate metadata to IPFS/Arweave from the client side during issuance.
-2.  **Batch Issuance**: Optimize the contract and frontend to support issuing multiple certificates to different recipients in a single transaction.
-3.  **Advanced Role Access**: Implement multi-signature roles to allow multiple staff members to authorize certificate revocations.
-4.  **CSV/Excel Recipient Import**: Allow upload of CSV lists of recipients to automatically generate certificates in bulk.
+| Requirement | State |
+|---|---|
+| Public GitHub repository | ✅ [Kalpesh-ops/CredChain](https://github.com/Kalpesh-ops/CredChain) |
+| 20+ meaningful commits | ✅ 55+ |
+| Live deployed application | ✅ [credchain-stellar.vercel.app](https://credchain-stellar.vercel.app) |
+| Product improvements from feedback | ✅ See *Feedback-driven improvements* below |
+| Updated documentation | ✅ This README plus the in-app [docs portal](https://credchain-stellar.vercel.app/docs) |
+| Pitch deck | ⬜ _Pending._ |
+| Demo video | ⬜ _Pending._ |
+| Proof of 50+ onboarded users | ⬜ _Pending._ |
+| Analytics / transaction screenshots | ⬜ _Pending._ |
+| User feedback iteration summary | ⬜ _Pending._ |
+
+### User onboarding & feedback collection
+
+Users are onboarded through the guided [`/start`](https://credchain-stellar.vercel.app/start)
+walkthrough and asked to complete a feedback form capturing their name, email, wallet
+address, and a product rating. Responses are exported to a spreadsheet linked here once
+collection closes.
+
+_Form link: pending. Exported responses: pending._
+
+Every claimed user is independently checkable: the form records the certificate id each
+person issued, and that id resolves on the public
+[registry](https://credchain-stellar.vercel.app/credentials) and at `/verify/<id>`. The
+on-chain record is the proof, not the spreadsheet.
+
+### Feedback-driven improvements
+
+Changes shipped this level in response to real usage problems:
+
+| Problem observed | Fix | Commit |
+|---|---|---|
+| Certificates showed addresses, not people — no way to tell what a credential was for | Holder name and title encoded on-chain; public certificate page with QR and print | [`07eeb6d`](https://github.com/Kalpesh-ops/CredChain/commit/07eeb6d) |
+| Dashboard certificate lookup threw on every result | u64 fields arrive as BigInt; converted at the hook boundary | [`8fde427`](https://github.com/Kalpesh-ops/CredChain/commit/8fde427) |
+| Newcomers hit a bare "Connect Wallet" wall with no next step | Guided five-step `/start` walkthrough driven by live chain state | [`b5774db`](https://github.com/Kalpesh-ops/CredChain/commit/b5774db) |
+| First transaction failed for unfunded accounts, with Friendbot mentioned only in the error | In-app funding button and network mismatch detection | [`f430b86`](https://github.com/Kalpesh-ops/CredChain/commit/f430b86) |
+| No way to see how many credentials existed | Public registry with totals, status, and search | [`0736901`](https://github.com/Kalpesh-ops/CredChain/commit/0736901) |
+| Step 1 offered only an install link — existing wallet holders could not proceed | Connect action on the page itself | [`8fb247d`](https://github.com/Kalpesh-ops/CredChain/commit/8fb247d) |
+| Wallet had to be reconnected on every reload | Opt-in session persistence with a user-chosen duration | [`001adeb`](https://github.com/Kalpesh-ops/CredChain/commit/001adeb) |
+| Activity feed was always empty | Event backfill across the RPC retention window plus Horizon account history | [`8c45673`](https://github.com/Kalpesh-ops/CredChain/commit/8c45673) |
 
 ---
 
-## Stellar Mastery Verification Checklist (Level 4 Green Belt)
+## Security notes
 
-✅ **Production MVP** — Stable frontend and Soroban smart contract architecture, mobile responsive, with clear loading and error handlers.
-✅ **Wallet Connect & Disconnect** — Supports Freighter, xBull, and Albedo wallets with clean state clearing.
-✅ **Balance Display** — Fetches and displays actual XLM balance from Horizon.
-✅ **Testnet Transaction** — Send XLM on Testnet directly in the dApp.
-✅ **Error Handling** — Robust handlers for wallet-not-installed, user-rejections, and insufficient-balances.
-✅ **Smart Contract Deployed** — Deployed at `CBYG2PMXPMCCMINZ5ZNJSFFLRWBBIEHOKHXQEC5BEXKKZRBL7Y2S4YUK`.
-✅ **Contract Read & Write** — Fully integrated read (institution registration checks, certificate verification) and write (issue certificate, register institution, revoke certificate) interactions.
-✅ **Event Listener & Real-Time Sync Indicator** — Real-time event polling, query cache invalidation, and live sync status badge in the Navbar.
-✅ **15+ Meaningful Commits** — Organized Git history reflecting iterative development.
-✅ **Public GitHub Repository** — Pushed and accessible on GitHub.
-✅ **README Complete** — Fully detailed documentation with Mermaid architecture diagram, screenshots, and Level 4 criteria.
-✅ **Live Demo** — Deployed and running on Vercel: [https://credchain-stellar.vercel.app](https://credchain-stellar.vercel.app)
-⬜ **Demo Video Link** — _Not yet recorded._ Replace this line with the video URL once it exists.
-✅ **Monitoring & Analytics Integration** — Tracks RPC node latencies, Horizon network status, and contract telemetry logs.
-⬜ **10+ Onboarded Users** — _Pending._ Update this line with the interaction count actually present on-chain for the deployed contract.
-✅ **Basic User Feedback Collection** — Interactive feedback form with ratings distribution, plus wallet-signed attribution verified server-side.
+* **Admin is bound at deploy.** There is no "set admin if unset" fallback — that would
+  make the admin seat claimable by any caller on a freshly deployed contract.
+* **Checks-effects-interactions.** `register_institution` completes all storage writes
+  before the optional fee transfer.
+* **No credentials in source.** An earlier implementation hardcoded a database
+  connection string; those files are gone, but the credential remains in git history and
+  must be treated as compromised.
+* **Feedback attribution is signature-derived**, never taken from the request body.
+* **Wallet persistence stores only a public address** and which wallet was used. No key
+  material is ever written to storage, and every signature still goes through the
+  extension.
 
+Full policy detail lives in the in-app
+[security documentation](https://credchain-stellar.vercel.app/docs/security).
+
+---
+
+## License
+
+Apache 2.0 / MIT.
