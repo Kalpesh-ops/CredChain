@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Check,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { useWalletStore } from "@/stores/wallet";
 import { useActivityStore } from "@/stores/activity";
@@ -73,10 +74,21 @@ function Step({
 }
 
 export default function StartPage() {
-  const { isConnected, address, balance, funding, networkMismatch } =
+  const { isConnected, address, balance, funding, networkMismatch, error } =
     useWalletStore();
+  const connect = useWalletStore((s) => s.connect);
   const fundAccount = useWalletStore((s) => s.fundAccount);
   const events = useActivityStore((s) => s.events);
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      await connect();
+    } finally {
+      setConnecting(false);
+    }
+  };
 
   const { data: isInst } = useIsInstitution(address);
   const { data: institution } = useGetInstitution(address);
@@ -120,17 +132,39 @@ export default function StartPage() {
           description={
             isConnected && address
               ? `Connected as ${truncateAddress(address)}`
-              : "Use the Connect Wallet button in the top bar. If you do not have one, install Freighter and switch it to Testnet."
+              : "Already have Freighter, xBull, or Albedo? Connect it here. Otherwise install Freighter first, then come back."
           }
           state={stepState(isConnected, true)}
         >
-          <a
-            href="https://www.freighter.app/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button variant="outline">Get Freighter</Button>
-          </a>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleConnect} disabled={connecting}>
+              {connecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Waiting for wallet...
+                </>
+              ) : (
+                "Connect my wallet"
+              )}
+            </Button>
+            <a
+              href="https://www.freighter.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button variant="outline">
+                I need a wallet
+                <ExternalLink className="ml-2 h-4 w-4" />
+              </Button>
+            </a>
+          </div>
+          {error && (
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          )}
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Installed Freighter just now? Reload this page so the extension is
+            detected, then connect.
+          </p>
         </Step>
 
         <Step
@@ -144,16 +178,27 @@ export default function StartPage() {
           }
           state={stepState(funded, isConnected)}
         >
-          <Button onClick={fundAccount} disabled={funding || networkMismatch}>
-            {funding ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Requesting test XLM...
-              </>
-            ) : (
-              "Fund my testnet account"
-            )}
-          </Button>
+          {networkMismatch ? (
+            <div className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              Your wallet is not on Testnet. Switch networks in the extension,
+              then{" "}
+              <button onClick={handleConnect} className="font-medium underline">
+                reconnect
+              </button>{" "}
+              so the change is picked up.
+            </div>
+          ) : (
+            <Button onClick={fundAccount} disabled={funding}>
+              {funding ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Requesting test XLM...
+                </>
+              ) : (
+                "Fund my testnet account"
+              )}
+            </Button>
+          )}
         </Step>
 
         <Step
