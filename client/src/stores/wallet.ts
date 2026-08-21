@@ -14,6 +14,12 @@ import {
 } from "@stellar/stellar-sdk";
 import type { WalletState, WalletName } from "@/types";
 import { getNetworkConfig } from "@/lib/contracts";
+import {
+  saveSession,
+  loadSession,
+  clearSession,
+  type RememberDuration,
+} from "@/lib/wallet-session";
 
 interface WalletStore extends WalletState {
   connect: () => Promise<void>;
@@ -34,6 +40,32 @@ interface WalletStore extends WalletState {
   networkMismatch: boolean;
   funding: boolean;
   fundAccount: () => Promise<void>;
+  /** Set after a fresh connect, until the user picks how long to be remembered. */
+  awaitingRememberChoice: boolean;
+  rememberSession: (duration: RememberDuration) => void;
+  restoreSession: () => Promise<void>;
+}
+
+async function initKit() {
+  const { StellarWalletsKit, Networks } = await import(
+    "@creit.tech/stellar-wallets-kit"
+  );
+  const { FreighterModule } = await import(
+    "@creit.tech/stellar-wallets-kit/modules/freighter"
+  );
+  const { xBullModule } = await import(
+    "@creit.tech/stellar-wallets-kit/modules/xbull"
+  );
+  const { AlbedoModule } = await import(
+    "@creit.tech/stellar-wallets-kit/modules/albedo"
+  );
+
+  StellarWalletsKit.init({
+    network: NETWORK === "mainnet" ? Networks.PUBLIC : Networks.TESTNET,
+    modules: [new FreighterModule(), new xBullModule(), new AlbedoModule()],
+  });
+
+  return StellarWalletsKit;
 }
 
 const NETWORK = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as "testnet" | "mainnet") || "testnet";
@@ -50,25 +82,50 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   error: null,
   networkMismatch: false,
   funding: false,
+  awaitingRememberChoice: false,
+
+  rememberSession: (duration) => {
+    const { address, walletName } = get();
+    set({ awaitingRememberChoice: false });
+    if (!address) return;
+    saveSession({ address, walletName }, duration);
+  },
+
+  restoreSession: async () => {
+    const session = loadSession();
+    if (!session) return;
+
+    // Only the public address is stored, never key material — but the kit still
+    // has to be told which wallet to talk to before it can sign anything.
+    try {
+      const StellarWalletsKit = await initKit();
+      if (session.walletName) {
+        StellarWalletsKit.setWallet(session.walletName);
+      }
+      const walletNetwork = await StellarWalletsKit.getNetwork();
+      set({
+        networkMismatch:
+          walletNetwork.networkPassphrase !== config.networkPassphrase,
+      });
+    } catch {
+      // The extension may be gone or locked; signing will surface that later.
+    }
+
+    set({
+      isConnected: true,
+      address: session.address,
+      walletName: session.walletName,
+    });
+
+    await get().fetchBalance();
+  },
 
   connect: async () => {
     try {
       set({ error: null });
 
       // Lazy import kit on the client side to avoid SSR errors
-      const { StellarWalletsKit, Networks } = await import("@creit.tech/stellar-wallets-kit");
-      const { FreighterModule } = await import("@creit.tech/stellar-wallets-kit/modules/freighter");
-      const { xBullModule } = await import("@creit.tech/stellar-wallets-kit/modules/xbull");
-      const { AlbedoModule } = await import("@creit.tech/stellar-wallets-kit/modules/albedo");
-
-      StellarWalletsKit.init({
-        network: NETWORK === "mainnet" ? Networks.PUBLIC : Networks.TESTNET,
-        modules: [
-          new FreighterModule(),
-          new xBullModule(),
-          new AlbedoModule(),
-        ],
-      });
+      const StellarWalletsKit = await initKit();
 
       const result = await StellarWalletsKit.authModal();
       
@@ -92,6 +149,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         address: result.address,
         walletName: walletId,
         networkMismatch,
+        awaitingRememberChoice: true,
       });
 
       await get().fetchBalance();
@@ -123,7 +181,9 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       balance: "0",
       error: null,
       networkMismatch: false,
+      awaitingRememberChoice: false,
     });
+    clearSession();
   },
 
   fundAccount: async () => {
