@@ -30,6 +30,10 @@ interface WalletStore extends WalletState {
   ) => Promise<unknown>;
   sendXlm: (recipient: string, amount: string) => Promise<string>;
   clearError: () => void;
+  /** True when the connected wallet is on a different network than the app. */
+  networkMismatch: boolean;
+  funding: boolean;
+  fundAccount: () => Promise<void>;
 }
 
 const NETWORK = (process.env.NEXT_PUBLIC_STELLAR_NETWORK as "testnet" | "mainnet") || "testnet";
@@ -44,6 +48,8 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
   walletName: null,
   balance: "0",
   error: null,
+  networkMismatch: false,
+  funding: false,
 
   connect: async () => {
     try {
@@ -74,10 +80,18 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
         }
       } catch {}
 
+      let networkMismatch = false;
+      try {
+        const walletNetwork = await StellarWalletsKit.getNetwork();
+        networkMismatch =
+          walletNetwork.networkPassphrase !== config.networkPassphrase;
+      } catch {}
+
       set({
         isConnected: true,
         address: result.address,
         walletName: walletId,
+        networkMismatch,
       });
 
       await get().fetchBalance();
@@ -108,7 +122,30 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       walletName: null,
       balance: "0",
       error: null,
+      networkMismatch: false,
     });
+  },
+
+  fundAccount: async () => {
+    const { address } = get();
+    if (!address || NETWORK !== "testnet") return;
+
+    set({ funding: true, error: null });
+    try {
+      const res = await fetch(
+        `https://friendbot.stellar.org/?addr=${encodeURIComponent(address)}`
+      );
+      // Friendbot answers 400 for an account it has already funded, which is
+      // not a failure from the user's point of view.
+      if (!res.ok && res.status !== 400) {
+        throw new Error(`Friendbot responded ${res.status}`);
+      }
+      await get().fetchBalance();
+    } catch {
+      set({ error: "Could not reach Friendbot. Try again in a moment." });
+    } finally {
+      set({ funding: false });
+    }
   },
 
   fetchBalance: async () => {

@@ -112,6 +112,22 @@ export function WalletModal({
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 Connect your Stellar wallet to interact with CredChain. The kit supports Freighter, xBull, Albedo, and other compatible Stellar wallets.
               </p>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-600 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                <p className="font-medium mb-1">No wallet yet?</p>
+                <p>
+                  Install{" "}
+                  <a
+                    href="https://www.freighter.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-blue-600 underline dark:text-blue-400"
+                  >
+                    Freighter
+                  </a>
+                  , then switch it to <span className="font-medium">Testnet</span>{" "}
+                  before connecting.
+                </p>
+              </div>
               <Button
                 onClick={handleConnect}
                 disabled={connecting}

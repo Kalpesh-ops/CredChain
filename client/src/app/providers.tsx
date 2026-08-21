@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
+import { NetworkBanner } from "@/components/NetworkBanner";
 import { Toaster } from "@/components/ui/toaster";
 import { TransactionTracker } from "@/components/TransactionTracker";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -30,6 +31,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <EventListener />
       <Navbar />
+      <NetworkBanner />
       <main className="flex flex-1 flex-col">{children}</main>
       <div className="fixed bottom-4 left-4 z-50">
         <ThemeToggle />
